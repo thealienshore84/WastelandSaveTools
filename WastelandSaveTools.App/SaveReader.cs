@@ -37,8 +37,6 @@ namespace WastelandSaveTools.App
 
             end += "</save>".Length;
 
-            //test
-
             string xml = text.Substring(start, end - start);
 
             // Validate XML
