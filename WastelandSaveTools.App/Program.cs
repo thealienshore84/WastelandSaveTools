@@ -8,7 +8,7 @@ namespace WastelandSaveTools.App
 {
     internal class Program
     {
-        private const string ToolVersion = "W3Tools v0.12";
+        private const string ToolVersion = "W3Tools v0.13";
 
         private static void Main(string[] args)
         {
@@ -213,6 +213,10 @@ namespace WastelandSaveTools.App
                 GeneratedAtLocal = DateTime.Now.ToString("O"),
                 SaveName = current.SaveName,
                 TimestampLocal = current.TimestampLocal,
+                // New: surface summary metadata at top-level
+                Version = current.Normalized.Summary.Version,
+                Scene = current.Normalized.Summary.Scene,
+                SaveTime = current.Normalized.Summary.SaveTime,
                 Current = current.Normalized,
                 Chain = chain
             };
@@ -287,8 +291,15 @@ namespace WastelandSaveTools.App
         {
             public string ToolVersion { get; set; } = "";
             public string GeneratedAtLocal { get; set; } = "";
+
             public string SaveName { get; set; } = "";
             public string TimestampLocal { get; set; } = "";
+
+            // New surfaced metadata from Current.Summary
+            public string Version { get; set; } = "";
+            public string Scene { get; set; } = "";
+            public string SaveTime { get; set; } = "";
+
             public NormalizedSaveState Current { get; set; } = new NormalizedSaveState();
             public CampaignDiffChain Chain { get; set; } = new CampaignDiffChain();
 
