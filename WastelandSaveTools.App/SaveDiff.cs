@@ -26,6 +26,20 @@ namespace WastelandSaveTools.App
         public int ToXP { get; set; }
     }
 
+    public class CampaignDiffLink
+    {
+        public string FromSaveName { get; set; } = "";
+        public string ToSaveName { get; set; } = "";
+        public SaveDiffResult Diff { get; set; } = new SaveDiffResult();
+    }
+
+    public class CampaignDiffChain
+    {
+        public string ToolVersion { get; set; } = "";
+        public string GeneratedAtUtc { get; set; } = "";
+        public List<CampaignDiffLink> Links { get; set; } = new();
+    }
+
     internal static class SaveDiff
     {
         public static SaveDiffResult Compare(
