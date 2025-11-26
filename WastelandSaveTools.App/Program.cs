@@ -8,7 +8,7 @@ namespace WastelandSaveTools.App
 {
     internal class Program
     {
-        private const string ToolVersion = "W3Tools v0.10";
+        private const string ToolVersion = "W3Tools v0.12";
 
         private static void Main(string[] args)
         {
@@ -34,25 +34,18 @@ namespace WastelandSaveTools.App
             PrintSaveList(xmlFiles);
 
             var outDir = GetOutputDirectory();
+            Directory.CreateDirectory(outDir);
             Logger.Init(outDir);
 
             Console.WriteLine();
-            Console.WriteLine("Enter the number of the save to export (default 1 = most recent),");
-            Console.WriteLine("or type 'all' to export every save and generate a single diff chain:");
+            Console.WriteLine("Enter the number of the save to export (default 1 = most recent):");
             Console.WriteLine();
             Console.Write("> ");
 
             var input = Console.ReadLine();
+            var index = 0;
 
-            if (string.IsNullOrWhiteSpace(input))
-            {
-                ExportSingleByIndex(xmlFiles, 0, outDir);
-            }
-            else if (string.Equals(input.Trim(), "all", StringComparison.OrdinalIgnoreCase))
-            {
-                ExportAllSavesWithChain(xmlFiles, outDir);
-            }
-            else
+            if (!string.IsNullOrWhiteSpace(input))
             {
                 if (!int.TryParse(input, out var parsed))
                 {
@@ -60,8 +53,35 @@ namespace WastelandSaveTools.App
                     return;
                 }
 
-                var index = Math.Clamp(parsed - 1, 0, xmlFiles.Count - 1);
-                ExportSingleByIndex(xmlFiles, index, outDir);
+                index = Math.Clamp(parsed - 1, 0, xmlFiles.Count - 1);
+            }
+
+            var selected = xmlFiles[index];
+
+            Console.WriteLine();
+            Console.WriteLine("Selected save:");
+            Console.WriteLine($"  {selected.FullName}");
+            Console.WriteLine();
+
+            Logger.Log(
+                $"Starting export with chain. Tool={ToolVersion}, Selected='{selected.FullName}'");
+
+            try
+            {
+                var bundle = ExportWithChainUpTo(selected, xmlFiles, outDir);
+
+                Console.WriteLine("Export complete.");
+                Console.WriteLine("Main bundle (current + chain):");
+                Console.WriteLine($"  {bundle.BundleBasePath}.export.json");
+                Console.WriteLine($"  {bundle.BundleBasePath}.export.pretty.json");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine();
+                Console.WriteLine("ERROR while exporting save:");
+                Console.WriteLine(ex);
+
+                Logger.LogException("ERROR exporting save with chain", ex);
             }
 
             if (Logger.LogFilePath is not null)
@@ -122,48 +142,12 @@ namespace WastelandSaveTools.App
             }
         }
 
-        private static void ExportSingleByIndex(
-            List<FileInfo> xmlFiles,
-            int index,
+        private static ExportBundle ExportWithChainUpTo(
+            FileInfo selectedSave,
+            List<FileInfo> allSaves,
             string outDir)
         {
-            var fi = xmlFiles[index];
-
-            Console.WriteLine();
-            Console.WriteLine("Selected save:");
-            Console.WriteLine($"  {fi.FullName}");
-            Console.WriteLine();
-
-            Logger.Log($"Start export (single). Tool={ToolVersion}, Save='{fi.FullName}'");
-
-            try
-            {
-                var result = ProcessSingleSave(fi, outDir);
-
-                Console.WriteLine("Export complete:");
-                PrintExportSummary(result);
-
-                TryAutoDiff(xmlFiles, index, outDir, result);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine();
-                Console.WriteLine("ERROR while exporting save:");
-                Console.WriteLine(ex);
-
-                Logger.LogException("ERROR exporting save (single)", ex);
-            }
-        }
-
-        private static void ExportAllSavesWithChain(
-            List<FileInfo> xmlFiles,
-            string outDir)
-        {
-            Console.WriteLine();
-            Console.WriteLine("Exporting all saves and building diff chain...");
-            Console.WriteLine();
-
-            var chronological = xmlFiles
+            var chronological = allSaves
                 .OrderBy(fi => fi.LastWriteTimeUtc)
                 .ToList();
 
@@ -174,83 +158,78 @@ namespace WastelandSaveTools.App
                 Links = new List<CampaignDiffLink>()
             };
 
-            var optionsCompact = new JsonSerializerOptions { WriteIndented = false };
-            var optionsPretty = new JsonSerializerOptions { WriteIndented = true };
+            SaveSnapshot? previous = null;
+            SaveSnapshot? current = null;
 
-            ExportResult? previous = null;
-
-            for (var i = 0; i < chronological.Count; i++)
+            foreach (var fi in chronological)
             {
-                var fi = chronological[i];
-
-                Console.WriteLine(
-                    $"[{i + 1}/{chronological.Count}] {fi.FullName}");
-
-                Logger.Log($"Batch export. Tool={ToolVersion}, Save='{fi.FullName}'");
-
-                ExportResult current;
-
-                try
+                if (fi.LastWriteTimeUtc > selectedSave.LastWriteTimeUtc)
                 {
-                    current = ProcessSingleSave(fi, outDir);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine("  ERROR exporting. Skipping.");
-                    Console.WriteLine($"  {ex.Message}");
-
-                    Logger.LogException("Batch export error", ex);
-                    previous = null;
-                    continue;
+                    break;
                 }
 
-                Console.WriteLine("  Export complete.");
-                PrintExportSummaryInline(current);
+                Logger.Log($"Processing save for chain (in memory): '{fi.FullName}'");
+
+                var snapshot = BuildSnapshot(fi);
 
                 if (previous is not null)
                 {
                     var diff = SaveDiff.Compare(
                         previous.Normalized,
-                        current.Normalized,
+                        snapshot.Normalized,
                         previous.SaveName,
-                        current.SaveName);
+                        snapshot.SaveName);
 
                     var link = new CampaignDiffLink
                     {
                         FromSaveName = previous.SaveName,
-                        ToSaveName = current.SaveName,
+                        ToSaveName = snapshot.SaveName,
                         Diff = diff
                     };
 
                     chain.Links.Add(link);
-
-                    Console.WriteLine("  Diff added to chain.");
                 }
 
-                previous = current;
-                Console.WriteLine();
+                if (string.Equals(
+                        fi.FullName,
+                        selectedSave.FullName,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    current = snapshot;
+                }
+
+                previous = snapshot;
             }
 
-            var chainBase = Path.Combine(outDir, "campaign.diffchain");
+            if (current is null)
+            {
+                throw new InvalidOperationException(
+                    "Selected save did not appear in chronological chain.");
+            }
 
-            File.WriteAllText(
-                chainBase + ".json",
-                JsonSerializer.Serialize(chain, optionsCompact));
+            var bundle = new ExportBundle
+            {
+                ToolVersion = ToolVersion,
+                GeneratedAtLocal = DateTime.Now.ToString("O"),
+                SaveName = current.SaveName,
+                TimestampLocal = current.TimestampLocal,
+                Current = current.Normalized,
+                Chain = chain
+            };
 
-            File.WriteAllText(
-                chainBase + ".pretty.json",
-                JsonSerializer.Serialize(chain, optionsPretty));
+            var bundlePrefix = $"{current.TimestampLocal}.{current.SaveName}";
+            var bundleBasePath = Path.Combine(outDir, bundlePrefix);
 
-            Logger.Log($"Campaign diff chain written: {chainBase}.json");
+            WriteJson(bundleBasePath + ".export.json", bundle, false);
+            WriteJson(bundleBasePath + ".export.pretty.json", bundle, true);
 
-            Console.WriteLine("Batch export complete.");
-            Console.WriteLine($"  {chainBase}.json");
-            Console.WriteLine($"  {chainBase}.pretty.json");
+            Logger.Log($"Bundle written: {bundleBasePath}.export.json");
+
+            bundle.BundleBasePath = bundleBasePath;
+            return bundle;
         }
 
-        private static ExportResult ProcessSingleSave(
-            FileInfo saveFile,
-            string outDir)
+        private static SaveSnapshot BuildSnapshot(FileInfo saveFile)
         {
             var savePath = saveFile.FullName;
 
@@ -267,8 +246,6 @@ namespace WastelandSaveTools.App
             Logger.Log("Step: normalize...");
             var normalized = Normalizer.Normalize(raw, parsed, ToolVersion);
 
-            Directory.CreateDirectory(outDir);
-
             var timestamp = saveFile.LastWriteTime
                 .ToString("yyyyMMdd_HHmmss_ffffff");
 
@@ -277,27 +254,14 @@ namespace WastelandSaveTools.App
                 .Replace("/", "_")
                 .Replace("\\", "_");
 
-            var filePrefix = $"{timestamp}.{safeName}";
-            var basePath = Path.Combine(outDir, filePrefix);
-
-            WriteJson(basePath + ".raw.json", raw, false);
-            WriteJson(basePath + ".raw.pretty.json", raw, true);
-            WriteJson(basePath + ".parsed.json", parsed, false);
-            WriteJson(basePath + ".parsed.pretty.json", parsed, true);
-            WriteJson(basePath + ".normalized.json", normalized, false);
-            WriteJson(basePath + ".normalized.pretty.json", normalized, true);
-
-            Logger.Log($"Export written: {basePath}.*");
-
-            var result = new ExportResult
+            var snapshot = new SaveSnapshot
             {
                 SaveName = safeName,
-                BasePath = basePath,
-                Normalized = normalized,
-                TimestampLocal = timestamp
+                TimestampLocal = timestamp,
+                Normalized = normalized
             };
 
-            return result;
+            return snapshot;
         }
 
         private static void WriteJson(string path, object value, bool pretty)
@@ -307,95 +271,29 @@ namespace WastelandSaveTools.App
                 WriteIndented = pretty
             };
 
-            File.WriteAllText(path, JsonSerializer.Serialize(value, options));
+            var json = JsonSerializer.Serialize(value, options);
+
+            File.WriteAllText(path, json);
         }
 
-        private static void TryAutoDiff(
-            List<FileInfo> xmlFiles,
-            int index,
-            string outDir,
-            ExportResult current)
-        {
-            if (index + 1 >= xmlFiles.Count)
-            {
-                return;
-            }
-
-            var fiPrev = xmlFiles[index + 1];
-
-            Logger.Log($"Auto-diff vs previous save '{fiPrev.FullName}'");
-
-            try
-            {
-                var prev = ProcessSingleSave(fiPrev, outDir);
-
-                WriteSingleDiff(prev, current, outDir);
-            }
-            catch (Exception ex)
-            {
-                Logger.LogException("Auto-diff failed", ex);
-
-                Console.WriteLine();
-                Console.WriteLine("Warning: auto-diff failed:");
-                Console.WriteLine(ex.Message);
-            }
-        }
-
-        private static void WriteSingleDiff(
-            ExportResult from,
-            ExportResult to,
-            string outDir)
-        {
-            var compact = new JsonSerializerOptions { WriteIndented = false };
-            var pretty = new JsonSerializerOptions { WriteIndented = true };
-
-            var diff = SaveDiff.Compare(
-                from.Normalized,
-                to.Normalized,
-                from.SaveName,
-                to.SaveName);
-
-            var filePrefix = $"{to.TimestampLocal}.{from.SaveName}--{to.SaveName}.diff";
-
-            var basePath = Path.Combine(outDir, filePrefix);
-
-            File.WriteAllText(
-                basePath + ".json",
-                JsonSerializer.Serialize(diff, compact));
-
-            File.WriteAllText(
-                basePath + ".pretty.json",
-                JsonSerializer.Serialize(diff, pretty));
-
-            Logger.Log($"Single diff written: {basePath}.json");
-
-            Console.WriteLine();
-            Console.WriteLine("Auto-diff:");
-            Console.WriteLine($"  {basePath}.json");
-            Console.WriteLine($"  {basePath}.pretty.json");
-        }
-
-        private static void PrintExportSummary(ExportResult result)
-        {
-            Console.WriteLine($"  RAW:        {result.BasePath}.raw.json");
-            Console.WriteLine($"  PARSED:     {result.BasePath}.parsed.json");
-            Console.WriteLine($"  NORMALIZED: {result.BasePath}.normalized.json");
-        }
-
-        private static void PrintExportSummaryInline(ExportResult result)
-        {
-            Console.WriteLine("  Output:");
-            Console.WriteLine($"    {result.BasePath}.raw.json");
-            Console.WriteLine($"    {result.BasePath}.parsed.json");
-            Console.WriteLine($"    {result.BasePath}.normalized.json");
-        }
-
-        private class ExportResult
+        private class SaveSnapshot
         {
             public string SaveName { get; set; } = "";
-            public string BasePath { get; set; } = "";
             public string TimestampLocal { get; set; } = "";
             public NormalizedSaveState Normalized { get; set; } = new NormalizedSaveState();
+        }
+
+        private class ExportBundle
+        {
+            public string ToolVersion { get; set; } = "";
+            public string GeneratedAtLocal { get; set; } = "";
+            public string SaveName { get; set; } = "";
+            public string TimestampLocal { get; set; } = "";
+            public NormalizedSaveState Current { get; set; } = new NormalizedSaveState();
+            public CampaignDiffChain Chain { get; set; } = new CampaignDiffChain();
+
+            // Not serialized - just for printing.
+            public string BundleBasePath { get; set; } = "";
         }
     }
 }
