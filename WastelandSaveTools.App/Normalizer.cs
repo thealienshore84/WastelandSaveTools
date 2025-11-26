@@ -17,26 +17,23 @@ namespace WastelandSaveTools.App
 
         /// <summary>
         /// Followers / tag-alongs such as animal companions. These come from
-        /// the &lt;followers&gt; and &lt;animalCompanions&gt; blocks.
+        /// the <followers> and <animalCompanions> blocks.
         /// </summary>
         public List<NormalizedFollower> Followers { get; set; } = new();
 
         /// <summary>
-        /// High-level "named" followers inferred from global flags, e.g.
-        /// "Major Tomcat" and "Two-Headed Goat". These capture what the game
-        /// knows at the story level: who COULD be with you.
+        /// High-level named followers inferred from global flags
+        /// (e.g. "Major Tomcat", "Two-Headed Goat").
         /// </summary>
         public List<NamedFollower> NamedFollowers { get; set; } = new();
 
         /// <summary>
-        /// Flattened item view pulled from generic ParsedItemRecord entries.
-        /// This is intentionally schema-agnostic - specific tools can interpret
-        /// the Data bag however they like.
+        /// Normalized inventory items.
         /// </summary>
         public List<NormalizedItem> Items { get; set; } = new();
 
         /// <summary>
-        /// Flattened container view pulled from ParsedContainerRecord entries.
+        /// Normalized containers (stash, Kodiak, world containers, etc.).
         /// </summary>
         public List<NormalizedContainer> Containers { get; set; } = new();
 
@@ -232,7 +229,10 @@ namespace WastelandSaveTools.App
             {
                 GeneratedBy = toolVersion,
                 Summary = parsed.Summary,
-                Party = parsed.Party.ToList()
+                Party = parsed.Party
+                    .Where(n => !string.IsNullOrWhiteSpace(n))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList()
             };
 
             // Characters
@@ -245,8 +245,7 @@ namespace WastelandSaveTools.App
                     IsCustomName = ch.IsCustomName,
                     Level = ch.Level,
                     XP = ch.XP,
-                    Attributes = ch.Attributes,
-                    Abilities = ch.Abilities.ToList()
+                    Attributes = ch.Attributes ?? new ParsedAttributes()
                 };
 
                 foreach (var sk in ch.Skills)
@@ -255,6 +254,7 @@ namespace WastelandSaveTools.App
                         continue;
 
                     string key = ResolveSkillName(sk.Id);
+
                     if (!nChar.Skills.TryAdd(key, sk.Level))
                     {
                         // If somehow duplicate, keep the highest level.
@@ -262,6 +262,7 @@ namespace WastelandSaveTools.App
                     }
                 }
 
+                nChar.Abilities.AddRange(ch.Abilities);
                 normalized.Characters.Add(nChar);
             }
 
@@ -278,10 +279,10 @@ namespace WastelandSaveTools.App
             normalized.FlatGlobals = flat;
             normalized.Globals = BuildNestedGlobals(parsed.Globals);
 
-            // High-level named followers from globals (Major Tomcat, goat, etc.)
+            // High-level named followers from globals (Major Tomcat, Two-Headed Goat, etc.)
             normalized.NamedFollowers = BuildNamedFollowersFromGlobals(flat);
 
-            // Followers - low-level follower records from ParsedSaveState
+            // Followers - low-level follower records from ParsedSaveState.
             normalized.Followers = parsed.Followers
                 .Select(f => new NormalizedFollower
                 {
@@ -289,8 +290,7 @@ namespace WastelandSaveTools.App
                     Name = f.Name,
                     AssignedTo = f.AssignedTo,
                     Type = string.IsNullOrWhiteSpace(f.Type) ? "Unknown" : f.Type,
-                    IsActive = f.IsActive,
-                    // NameCandidates will be filled in after we know NamedFollowers.
+                    IsActive = f.IsActive
                 })
                 .ToList();
 
@@ -324,6 +324,17 @@ namespace WastelandSaveTools.App
                         c.Data ?? new Dictionary<string, string>(),
                         StringComparer.OrdinalIgnoreCase)
                 })
+                .ToList();
+
+            // Extend Party with any active named followers (animal companions, etc.).
+            var activeFollowerNames = normalized.NamedFollowers
+                .Where(nf => nf.IsActive)
+                .Select(nf => nf.Name)
+                .Where(n => !string.IsNullOrWhiteSpace(n));
+
+            normalized.Party = normalized.Party
+                .Concat(activeFollowerNames)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
             return normalized;
@@ -369,8 +380,7 @@ namespace WastelandSaveTools.App
         /// <summary>
         /// For each low-level follower, attach the list of *possible* high-level names
         /// based on the active NamedFollowers of the same category.
-        /// This is intentionally explicit about ambiguity: if we can't know which
-        /// animal is which, we don't fake it.
+        /// This is intentionally explicit about ambiguity.
         /// </summary>
         private static void AttachNameCandidates(NormalizedSaveState state)
         {
