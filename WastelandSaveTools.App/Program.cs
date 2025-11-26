@@ -14,10 +14,12 @@ namespace WastelandSaveTools.App
             Console.WriteLine($"{ToolVersion} - Wasteland 3 Save Inspector");
             Console.WriteLine();
 
-            // 1. Locate save-game root
+            // 1. Locate save directory
             string saveRoot = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                "My Games", "Wasteland3", "Save Games"
+                "My Games",
+                "Wasteland3",
+                "Save Games"
             );
 
             if (!Directory.Exists(saveRoot))
@@ -51,9 +53,11 @@ namespace WastelandSaveTools.App
             }
 
             Console.WriteLine();
-            Console.Write("Enter the number of the save to export (default 1 = most recent): ");
-            string? input = Console.ReadLine();
+            Console.WriteLine("Enter the number of the save to export (default 1 = most recent):");
+            Console.WriteLine();
 
+            Console.Write("> ");
+            string? input = Console.ReadLine();
             int index = 0;
             if (!string.IsNullOrWhiteSpace(input) && int.TryParse(input, out int parsed))
             {
@@ -67,26 +71,40 @@ namespace WastelandSaveTools.App
             Console.WriteLine($"  {chosenFile}");
             Console.WriteLine();
 
+            // 3. Choose output directory (also used for logs)
+            string outDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                "Downloads",
+                "WL3Saves"
+            );
+            Logger.Init(outDir);
+            Logger.Log($"Starting export. ToolVersion={ToolVersion}, SavePath='{chosenFile}'");
+
             try
             {
-                // 3. Extract XML from the WL3 file
+                // 4. Extract XML from the WL3 file
+                Logger.Log("Step: Extracting XML from save...");
                 string xml = SaveReader.ExtractXml(chosenFile);
+                Logger.Log($"Step: XML extracted. Length={xml.Length} chars.");
 
-                // 4. Build raw + parsed state
+                // 5. Build raw + parsed state
+                Logger.Log("Step: Extracting raw state...");
                 RawSaveState rawState = StateExtractor.Extract(xml);
+                Logger.Log("Step: Raw state extracted.");
+
+                Logger.Log("Step: Parsing state...");
                 ParsedSaveState parsedState = StateParser.Parse(rawState);
+                Logger.Log("Step: Parsed state built.");
 
-                // 5. Build normalized state for AI / tooling
+                // 6. Build normalized state for AI / tooling
+                Logger.Log("Step: Normalizing state...");
                 NormalizedSaveState normalized = Normalizer.Normalize(rawState, parsedState, ToolVersion);
+                Logger.Log("Step: Normalized state built.");
 
-                // 6. Output directory
-                string outDir = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                    "Downloads",
-                    "WL3Saves"
-                );
+                // 7. Ensure output directory exists
                 Directory.CreateDirectory(outDir);
 
+                // 8. Choose base filename
                 string baseName = Path.GetFileNameWithoutExtension(chosenFile);
                 string basePath = Path.Combine(outDir, baseName);
 
@@ -94,13 +112,12 @@ namespace WastelandSaveTools.App
                 {
                     WriteIndented = false
                 };
-
                 var prettyOptions = new JsonSerializerOptions
                 {
                     WriteIndented = true
                 };
 
-                // 7. Write RAW state (what the extractor sees directly from XML)
+                // 9. Write RAW state
                 File.WriteAllText(
                     basePath + ".raw.json",
                     JsonSerializer.Serialize(rawState, compactOptions)
@@ -110,7 +127,7 @@ namespace WastelandSaveTools.App
                     JsonSerializer.Serialize(rawState, prettyOptions)
                 );
 
-                // 8. Write PARSED state (characters, globals, etc.)
+                // 10. Write PARSED state
                 File.WriteAllText(
                     basePath + ".parsed.json",
                     JsonSerializer.Serialize(parsedState, compactOptions)
@@ -120,7 +137,7 @@ namespace WastelandSaveTools.App
                     JsonSerializer.Serialize(parsedState, prettyOptions)
                 );
 
-                // 9. Write NORMALIZED state (clean, AI-friendly)
+                // 11. Write NORMALIZED state (clean, AI-friendly)
                 File.WriteAllText(
                     basePath + ".normalized.json",
                     JsonSerializer.Serialize(normalized, compactOptions)
@@ -129,6 +146,8 @@ namespace WastelandSaveTools.App
                     basePath + ".normalized.pretty.json",
                     JsonSerializer.Serialize(normalized, prettyOptions)
                 );
+
+                Logger.Log($"Export complete. BasePath='{basePath}'");
 
                 Console.WriteLine("Export complete:");
                 Console.WriteLine($"  RAW (compact):        {basePath}.raw.json");
@@ -140,12 +159,28 @@ namespace WastelandSaveTools.App
                 Console.WriteLine();
                 Console.WriteLine("If you recompile later and forget, check the header for:");
                 Console.WriteLine($"  Tool version = {ToolVersion}");
+
+                if (Logger.LogFilePath is not null)
+                {
+                    Console.WriteLine();
+                    Console.WriteLine("A log file was written to:");
+                    Console.WriteLine($"  {Logger.LogFilePath}");
+                }
             }
             catch (Exception ex)
             {
                 Console.WriteLine();
                 Console.WriteLine("ERROR while exporting save:");
                 Console.WriteLine(ex.ToString());
+
+                Logger.LogException("ERROR while exporting save", ex);
+
+                if (Logger.LogFilePath is not null)
+                {
+                    Console.WriteLine();
+                    Console.WriteLine("A log file was written to:");
+                    Console.WriteLine($"  {Logger.LogFilePath}");
+                }
             }
         }
     }
