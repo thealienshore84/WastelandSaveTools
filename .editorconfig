@@ -1,0 +1,107 @@
+﻿root = true
+
+[*.cs]
+
+############################
+# INDENTATION & LAYOUT
+############################
+
+indent_style = space
+indent_size = 4
+tab_width = 4
+
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+csharp_new_line_before_members_in_object_initializers = true
+csharp_new_line_before_members_in_anonymous_types = true
+
+csharp_prefer_braces = true:suggestion
+csharp_preserve_single_line_blocks = false
+
+############################
+# VAR USAGE
+############################
+
+csharp_style_var_for_built_in_types = true:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_style_var_elsewhere = true:suggestion
+
+############################
+# THIS. QUALIFICATION
+############################
+
+dotnet_style_qualification_for_field = true:suggestion
+dotnet_style_qualification_for_property = true:suggestion
+dotnet_style_qualification_for_event = true:suggestion
+dotnet_style_qualification_for_method = false:silent
+
+############################
+# NULL & PATTERN MATCHING
+############################
+
+csharp_style_pattern_matching_over_is_with_cast_check = true:suggestion
+csharp_style_prefer_is_null_check_over_reference_equality_method = true:suggestion
+csharp_style_prefer_pattern_matching = true:suggestion
+
+############################
+# EXPRESSION-BODIED MEMBERS
+############################
+
+csharp_style_expression_bodied_methods = when_on_single_line:suggestion
+csharp_style_expression_bodied_properties = when_on_single_line:suggestion
+csharp_style_expression_bodied_indexers = when_on_single_line:suggestion
+csharp_style_expression_bodied_constructors = when_on_single_line:suggestion
+
+############################
+# NAMING
+############################
+
+# Fields: PascalCase, no underscores
+dotnet_naming_rule.fields_pascal.names = fields_pascal
+dotnet_naming_rule.fields_pascal.symbols = field_symbols
+dotnet_naming_rule.fields_pascal.style = pascal_case_style
+
+dotnet_naming_symbols.field_symbols.applicable_kinds = field
+dotnet_naming_symbols.field_symbols.applicable_accessibilities = *
+dotnet_naming_symbols.field_symbols.required_modifiers =
+
+dotnet_naming_style.pascal_case_style.capitalization = pascal_case
+
+# Interfaces: start with I, PascalCase
+dotnet_naming_rule.interfaces_start_with_i.names = interfaces_start_with_i
+dotnet_naming_rule.interfaces_start_with_i.symbols = interface_symbols
+dotnet_naming_rule.interfaces_start_with_i.style = interface_prefix_style
+
+dotnet_naming_symbols.interface_symbols.applicable_kinds = interface
+dotnet_naming_symbols.interface_symbols.applicable_accessibilities = *
+dotnet_naming_symbols.interface_symbols.required_modifiers =
+
+dotnet_naming_style.interface_prefix_style.capitalization = pascal_case
+dotnet_naming_style.interface_prefix_style.required_prefix = I
+
+############################
+# USINGS & ORDERING
+############################
+
+dotnet_sort_system_directives_first = true
+dotnet_separate_import_directive_groups = false
+
+############################
+# NULLABILITY / ARG CHECKS
+############################
+
+dotnet_diagnostic.CA1062.severity = suggestion   # Validate arguments when it makes sense
+dotnet_diagnostic.CA1303.severity = silent       # Don’t nag about localizable strings by default
+
+############################
+# MISC PREFERENCES
+############################
+
+# Prefer explicit types in signatures; var only for locals
+csharp_style_deconstructed_variable_declaration = true:suggestion
+csharp_style_inlined_variable_declaration = true:suggestion
+
+# Don’t force using-declarations; blocks are fine
+csharp_prefer_simple_using_statement = false:silent

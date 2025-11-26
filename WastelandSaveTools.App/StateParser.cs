@@ -36,8 +36,8 @@ namespace WastelandSaveTools.App
 
         private static ParsedSummary BuildSummary(RawSaveState raw)
         {
-            int gameplaySeconds = int.TryParse(raw.Summary.GameplayTime, out var t) ? t : 0;
-            int money = int.TryParse(raw.Summary.Money, out var m) ? m : 0;
+            var gameplaySeconds = int.TryParse(raw.Summary.GameplayTime, out var t) ? t : 0;
+            var money = int.TryParse(raw.Summary.Money, out var m) ? m : 0;
 
             return new ParsedSummary
             {
@@ -55,7 +55,7 @@ namespace WastelandSaveTools.App
         // --------------------------
         private static void ParseCharacters(RawSaveState raw, ParsedSaveState target)
         {
-            string pcsXml = raw.Xml.Pcs ?? "";
+            var pcsXml = raw.Xml.Pcs ?? "";
 
             if (string.IsNullOrWhiteSpace(pcsXml) && !string.IsNullOrWhiteSpace(raw.RawXml))
             {
@@ -64,30 +64,36 @@ namespace WastelandSaveTools.App
                     var full = XDocument.Parse(raw.RawXml);
                     var pcs = full.Descendants("pcs").FirstOrDefault();
                     if (pcs != null)
+                    {
                         pcsXml = pcs.ToString(SaveOptions.DisableFormatting);
+                    }
                 }
                 catch { }
             }
 
             if (string.IsNullOrWhiteSpace(pcsXml))
+            {
                 return;
+            }
 
-            XDocument pcsDoc = XDocument.Parse(pcsXml!);
+            var pcsDoc = XDocument.Parse(pcsXml!);
 
-            XElement root = pcsDoc.Root!;
-            XElement pcsElement =
+            var root = pcsDoc.Root!;
+            var pcsElement =
                 root.Name.LocalName.Equals("pcs", StringComparison.OrdinalIgnoreCase)
                     ? root
                     : root.Element("pcs") ?? root;
 
             foreach (var pc in pcsElement.Elements("pc"))
             {
-                string? name = pc.Element("displayName")?.Value;
-                int companionId = ReadInt(pc, "companionId");
-                bool isCompanion = companionId > 0;
+                var name = pc.Element("displayName")?.Value;
+                var companionId = ReadInt(pc, "companionId");
+                var isCompanion = companionId > 0;
 
                 if (string.IsNullOrWhiteSpace(name))
+                {
                     name = TryInferPcName(pc);
+                }
 
                 if (string.IsNullOrWhiteSpace(name) &&
                     isCompanion &&
@@ -99,9 +105,13 @@ namespace WastelandSaveTools.App
                 if (string.IsNullOrWhiteSpace(name))
                 {
                     if (isCompanion)
+                    {
                         name = $"Companion #{companionId}";
+                    }
                     else
+                    {
                         continue;
+                    }
                 }
 
                 var ch = new ParsedCharacter
@@ -128,9 +138,11 @@ namespace WastelandSaveTools.App
                 {
                     foreach (var skill in skillsEl.Elements("skill"))
                     {
-                        string? id = skill.Element("skillId")?.Value;
+                        var id = skill.Element("skillId")?.Value;
                         if (string.IsNullOrWhiteSpace(id))
+                        {
                             continue;
+                        }
 
                         ch.Skills.Add(new ParsedSkill
                         {
@@ -145,9 +157,11 @@ namespace WastelandSaveTools.App
                 {
                     foreach (var ab in abilitiesEl.Elements("ability"))
                     {
-                        string val = ab.Value;
+                        var val = ab.Value;
                         if (!string.IsNullOrWhiteSpace(val))
+                        {
                             ch.Abilities.Add(val);
+                        }
                     }
                 }
 
@@ -160,16 +174,20 @@ namespace WastelandSaveTools.App
         {
             foreach (var t in pc.Descendants("templateName"))
             {
-                string? v = t.Value;
+                var v = t.Value;
                 if (string.IsNullOrWhiteSpace(v))
+                {
                     continue;
+                }
 
                 var m = Regex.Match(v, "CNPC_([A-Za-z0-9]+)");
                 if (m.Success)
+                {
                     return m.Groups[1].Value;
+                }
             }
 
-            string? speaker = pc.Element("speakerName")?.Value;
+            var speaker = pc.Element("speakerName")?.Value;
             return string.IsNullOrWhiteSpace(speaker) ? null : speaker;
         }
 
@@ -188,15 +206,15 @@ namespace WastelandSaveTools.App
                     var root = doc.Root;
                     if (root != null)
                     {
-                        XElement fEl =
+                        var fEl =
                             root.Name.LocalName.Equals("followers", StringComparison.OrdinalIgnoreCase)
                                 ? root
                                 : root.Element("followers") ?? root;
 
                         foreach (var fd in fEl.Elements("followerdata"))
                         {
-                            int id = ReadInt(fd, "follower");
-                            string assigned = fd.Element("pcName")?.Value ?? "";
+                            var id = ReadInt(fd, "follower");
+                            var assigned = fd.Element("pcName")?.Value ?? "";
 
                             list.Add(new ParsedFollower
                             {
@@ -221,9 +239,9 @@ namespace WastelandSaveTools.App
                     {
                         foreach (var ad in root.Elements("animaldata"))
                         {
-                            int id = ReadInt(ad, "follower");
-                            string assigned = ad.Element("pcName")?.Value ?? "";
-                            int typeId = ReadInt(ad, "id");
+                            var id = ReadInt(ad, "follower");
+                            var assigned = ad.Element("pcName")?.Value ?? "";
+                            var typeId = ReadInt(ad, "id");
 
                             var f = list.FirstOrDefault(x => x.FollowerId == id);
                             if (f == null)
@@ -239,7 +257,9 @@ namespace WastelandSaveTools.App
                             f.Type = "Animal";
                             f.Name = $"AnimalCompanion_{typeId}";
                             if (!string.IsNullOrWhiteSpace(assigned))
+                            {
                                 f.AssignedTo = assigned;
+                            }
                         }
                     }
                 }
@@ -261,7 +281,7 @@ namespace WastelandSaveTools.App
 
         private static void ParseCharacterInventory(RawSaveState raw, ParsedSaveState target)
         {
-            string pcsXml = raw.Xml.Pcs ?? "";
+            var pcsXml = raw.Xml.Pcs ?? "";
 
             if (string.IsNullOrWhiteSpace(pcsXml) && !string.IsNullOrWhiteSpace(raw.RawXml))
             {
@@ -270,35 +290,45 @@ namespace WastelandSaveTools.App
                     var doc = XDocument.Parse(raw.RawXml);
                     var pcs = doc.Descendants("pcs").FirstOrDefault();
                     if (pcs != null)
+                    {
                         pcsXml = pcs.ToString(SaveOptions.DisableFormatting);
+                    }
                 }
                 catch { }
             }
 
             if (string.IsNullOrWhiteSpace(pcsXml))
+            {
                 return;
+            }
 
             var pcsDoc = XDocument.Parse(pcsXml!);
-            XElement root = pcsDoc.Root!;
-            XElement pcsElement =
+            var root = pcsDoc.Root!;
+            var pcsElement =
                 root.Name.LocalName.Equals("pcs", StringComparison.OrdinalIgnoreCase)
                     ? root
                     : root.Element("pcs") ?? root;
 
             foreach (var pc in pcsElement.Elements("pc"))
             {
-                string owner = pc.Element("displayName")?.Value ?? "";
-                int companionId = ReadInt(pc, "companionId");
+                var owner = pc.Element("displayName")?.Value ?? "";
+                var companionId = ReadInt(pc, "companionId");
 
                 if (string.IsNullOrWhiteSpace(owner))
+                {
                     owner = TryInferPcName(pc) ?? "";
+                }
 
                 if (string.IsNullOrWhiteSpace(owner) &&
                     CompanionIdToName.TryGetValue(companionId, out var mapped))
+                {
                     owner = mapped;
+                }
 
                 if (string.IsNullOrWhiteSpace(owner) && companionId > 0)
+                {
                     owner = $"Companion #{companionId}";
+                }
 
                 foreach (var itemEl in pc.Descendants("item"))
                 {
@@ -311,13 +341,15 @@ namespace WastelandSaveTools.App
         private static void ScanContainersAndItems(string? xml, string contextHint, ParsedSaveState target)
         {
             if (string.IsNullOrWhiteSpace(xml))
+            {
                 return;
+            }
 
             XDocument doc;
             try { doc = XDocument.Parse(xml!); }
             catch { return; }
 
-            XElement root = doc.Root!;
+            var root = doc.Root!;
             foreach (var cEl in root.Descendants("container"))
             {
                 var c = new ParsedContainerRecord
@@ -347,7 +379,9 @@ namespace WastelandSaveTools.App
             foreach (var itemsEl in root.Descendants("items"))
             {
                 if (itemsEl.Ancestors("container").Any())
+                {
                     continue;
+                }
 
                 foreach (var itemEl in itemsEl.Elements("item"))
                 {
@@ -380,10 +414,14 @@ namespace WastelandSaveTools.App
 
             var data = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var child in el.Elements())
+            {
                 data[child.Name.LocalName] = child.Value ?? "";
+            }
 
             if (!string.IsNullOrWhiteSpace(owner))
+            {
                 data["Owner"] = owner;
+            }
 
             rec.Data = data;
             return rec;
@@ -395,22 +433,28 @@ namespace WastelandSaveTools.App
         private static void ParseGlobals(RawSaveState raw, ParsedSaveState target)
         {
             if (string.IsNullOrWhiteSpace(raw.Xml.Globals))
+            {
                 return;
+            }
 
             try
             {
                 var doc = XDocument.Parse(raw.Xml.Globals);
                 var root = doc.Root;
                 if (root == null)
+                {
                     return;
+                }
 
                 foreach (var g in root.Elements("global"))
                 {
-                    string? key = g.Element("k")?.Value;
+                    var key = g.Element("k")?.Value;
                     if (string.IsNullOrWhiteSpace(key))
+                    {
                         continue;
+                    }
 
-                    string value = g.Element("v")?.Value ?? "";
+                    var value = g.Element("v")?.Value ?? "";
 
                     target.Globals.Add(new GlobalFlag
                     {
@@ -435,10 +479,14 @@ namespace WastelandSaveTools.App
         {
             var el = parent.Element(name);
             if (el == null)
+            {
                 return false;
+            }
 
             if (bool.TryParse(el.Value, out var b))
+            {
                 return b;
+            }
 
             return int.TryParse(el.Value, out var i) && i != 0;
         }
@@ -450,11 +498,15 @@ namespace WastelandSaveTools.App
             foreach (var node in el.DescendantsAndSelf())
             {
                 if (!node.HasElements)
+                {
                     dict[node.Name.LocalName] = node.Value ?? "";
+                }
             }
 
             foreach (var attr in el.Attributes())
+            {
                 dict["@" + attr.Name.LocalName] = attr.Value ?? "";
+            }
 
             return dict;
         }

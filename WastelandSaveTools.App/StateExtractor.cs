@@ -11,12 +11,16 @@ namespace WastelandSaveTools.App
             var result = new RawSaveState();
 
             if (string.IsNullOrWhiteSpace(xml))
+            {
                 return result;
+            }
 
             var doc = XDocument.Parse(xml);
             var root = doc.Root;
             if (root == null)
+            {
                 return result;
+            }
 
             // Summary
             result.Summary.Version = root.Attribute("version")?.Value ?? "";

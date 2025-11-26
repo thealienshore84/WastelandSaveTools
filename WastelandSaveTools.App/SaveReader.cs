@@ -24,12 +24,14 @@ namespace WastelandSaveTools.App
         public static string ReadSave(string path)
         {
             if (!File.Exists(path))
+            {
                 throw new FileNotFoundException("Save not found.", path);
+            }
 
-            byte[] data = File.ReadAllBytes(path);
+            var data = File.ReadAllBytes(path);
 
             // Peek at the first chunk of the file as ASCII to detect the XLZF header.
-            string headerProbe = Encoding.ASCII.GetString(
+            var headerProbe = Encoding.ASCII.GetString(
                 data, 0, Math.Min(data.Length, 4096)
             );
 
@@ -40,18 +42,24 @@ namespace WastelandSaveTools.App
             }
 
             // We have an XLZF header - parse DataSize and locate the end of the header.
-            int dataSize = ParseDataSize(headerProbe);
-            int headerLength = FindHeaderLength(headerProbe);
+            var dataSize = ParseDataSize(headerProbe);
+            var headerLength = FindHeaderLength(headerProbe);
 
             if (headerLength <= 0 || headerLength >= data.Length)
+            {
                 throw new InvalidOperationException("Could not locate end of XLZF header.");
+            }
 
             if (dataSize <= 0)
+            {
                 throw new InvalidOperationException($"Invalid DataSize value in header: {dataSize}");
+            }
 
-            int compressedLength = data.Length - headerLength;
+            var compressedLength = data.Length - headerLength;
             if (compressedLength <= 0)
+            {
                 throw new InvalidOperationException("No compressed payload found after header.");
+            }
 
             // Copy the compressed payload into its own buffer.
             var compressed = new byte[compressedLength];
@@ -59,17 +67,19 @@ namespace WastelandSaveTools.App
 
             // Decompress using the existing Lzf implementation.
             var decompressed = new byte[dataSize];
-            int written = Lzf.Decompress(compressed, compressed.Length, decompressed, decompressed.Length);
+            var written = Lzf.Decompress(compressed, compressed.Length, decompressed, decompressed.Length);
             if (written <= 0)
+            {
                 throw new InvalidOperationException("LZF decompression failed for save payload.");
+            }
 
-            string xmlText = Encoding.UTF8.GetString(decompressed, 0, written);
+            var xmlText = Encoding.UTF8.GetString(decompressed, 0, written);
 
             // Trim BOM / stray nulls / whitespace at the ends.
             xmlText = xmlText.Trim('\0', '\t', '\r', '\n', ' ');
 
             // Extract the <save>...</save> block from the decompressed text.
-            string xml = ExtractSaveBlock(xmlText);
+            var xml = ExtractSaveBlock(xmlText);
 
             // Validate XML so we fail early if it is corrupt.
             XDocument.Parse(xml);
@@ -82,7 +92,7 @@ namespace WastelandSaveTools.App
         /// </summary>
         private static string ExtractPlainXml(byte[] data)
         {
-            string text = Encoding.UTF8.GetString(data);
+            var text = Encoding.UTF8.GetString(data);
 
             return ExtractSaveBlock(text);
         }
@@ -92,11 +102,13 @@ namespace WastelandSaveTools.App
         /// </summary>
         private static string ExtractSaveBlock(string text)
         {
-            int start = text.IndexOf("<save", StringComparison.OrdinalIgnoreCase);
-            int end = text.LastIndexOf("</save>", StringComparison.OrdinalIgnoreCase);
+            var start = text.IndexOf("<save", StringComparison.OrdinalIgnoreCase);
+            var end = text.LastIndexOf("</save>", StringComparison.OrdinalIgnoreCase);
 
             if (start < 0 || end < 0)
+            {
                 throw new Exception("Could not locate <save> XML block in decompressed data.");
+            }
 
             end += "</save>".Length;
 
@@ -110,19 +122,25 @@ namespace WastelandSaveTools.App
         {
             const string marker = "DataSize:=";
 
-            int idx = headerText.IndexOf(marker, StringComparison.Ordinal);
+            var idx = headerText.IndexOf(marker, StringComparison.Ordinal);
             if (idx < 0)
+            {
                 throw new InvalidOperationException("DataSize field not found in XLZF header.");
+            }
 
-            int valueStart = idx + marker.Length;
-            int valueEnd = headerText.IndexOf('\n', valueStart);
+            var valueStart = idx + marker.Length;
+            var valueEnd = headerText.IndexOf('\n', valueStart);
             if (valueEnd < 0)
+            {
                 valueEnd = headerText.Length;
+            }
 
-            string value = headerText.Substring(valueStart, valueEnd - valueStart).Trim();
+            var value = headerText.Substring(valueStart, valueEnd - valueStart).Trim();
 
-            if (!int.TryParse(value, out int result))
+            if (!int.TryParse(value, out var result))
+            {
                 throw new InvalidOperationException($"Could not parse DataSize value: '{value}'.");
+            }
 
             return result;
         }
@@ -136,13 +154,17 @@ namespace WastelandSaveTools.App
             // The header is small, so we just look for the final header line.
             const string lastHeaderKey = "DLCReq:=";
 
-            int dlcIndex = headerProbe.IndexOf(lastHeaderKey, StringComparison.Ordinal);
+            var dlcIndex = headerProbe.IndexOf(lastHeaderKey, StringComparison.Ordinal);
             if (dlcIndex < 0)
+            {
                 throw new InvalidOperationException("DLCReq field not found in XLZF header.");
+            }
 
-            int newlineIndex = headerProbe.IndexOf('\n', dlcIndex);
+            var newlineIndex = headerProbe.IndexOf('\n', dlcIndex);
             if (newlineIndex < 0)
+            {
                 throw new InvalidOperationException("Could not find end of DLCReq header line.");
+            }
 
             // Position after the newline is the start of the compressed payload.
             return newlineIndex + 1;

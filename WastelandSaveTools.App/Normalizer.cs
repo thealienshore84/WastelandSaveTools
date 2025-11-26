@@ -251,9 +251,11 @@ namespace WastelandSaveTools.App
                 foreach (var sk in ch.Skills)
                 {
                     if (string.IsNullOrWhiteSpace(sk.Id))
+                    {
                         continue;
+                    }
 
-                    string key = ResolveSkillName(sk.Id);
+                    var key = ResolveSkillName(sk.Id);
 
                     if (!nChar.Skills.TryAdd(key, sk.Level))
                     {
@@ -271,7 +273,9 @@ namespace WastelandSaveTools.App
             foreach (var flag in parsed.Globals)
             {
                 if (string.IsNullOrWhiteSpace(flag.Key))
+                {
                     continue;
+                }
 
                 flat[flag.Key] = flag.Value ?? "";
             }
@@ -343,7 +347,9 @@ namespace WastelandSaveTools.App
         private static string ResolveSkillName(string id)
         {
             if (SkillIdToName.TryGetValue(id, out var name))
+            {
                 return name;
+            }
 
             return "skill_" + id;
         }
@@ -356,11 +362,15 @@ namespace WastelandSaveTools.App
             foreach (var kvp in FollowerGlobalsMap)
             {
                 if (!flatGlobals.TryGetValue(kvp.Key, out var value))
+                {
                     continue;
+                }
 
                 // In the saves you've sent so far, "1" means "active follower".
                 if (!string.Equals(value, "1", StringComparison.OrdinalIgnoreCase))
+                {
                     continue;
+                }
 
                 var desc = kvp.Value;
 
@@ -390,12 +400,16 @@ namespace WastelandSaveTools.App
                 .ToList();
 
             if (activeAnimals.Count == 0)
+            {
                 return;
+            }
 
             foreach (var follower in state.Followers)
             {
                 if (!string.Equals(follower.Type, "Animal", StringComparison.OrdinalIgnoreCase))
+                {
                     continue;
+                }
 
                 follower.NameCandidates = activeAnimals
                     .Select(a => a.Name)
@@ -412,15 +426,17 @@ namespace WastelandSaveTools.App
             foreach (var flag in globals)
             {
                 if (string.IsNullOrWhiteSpace(flag.Key))
-                    continue;
-
-                string[] parts = flag.Key.Split('.');
-                Dictionary<string, object> current = root;
-
-                for (int i = 0; i < parts.Length; i++)
                 {
-                    string part = parts[i];
-                    bool isLast = (i == parts.Length - 1);
+                    continue;
+                }
+
+                var parts = flag.Key.Split('.');
+                var current = root;
+
+                for (var i = 0; i < parts.Length; i++)
+                {
+                    var part = parts[i];
+                    var isLast = (i == parts.Length - 1);
 
                     if (isLast)
                     {

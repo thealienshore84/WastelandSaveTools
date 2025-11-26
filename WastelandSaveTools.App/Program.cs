@@ -15,7 +15,7 @@ namespace WastelandSaveTools.App
             Console.WriteLine();
 
             // 1. Locate save directory
-            string saveRoot = Path.Combine(
+            var saveRoot = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
                 "My Games",
                 "Wasteland3",
@@ -44,7 +44,7 @@ namespace WastelandSaveTools.App
             }
 
             Console.WriteLine($"Found {xmlFiles.Count} XML save file(s).\n");
-            for (int i = 0; i < xmlFiles.Count; i++)
+            for (var i = 0; i < xmlFiles.Count; i++)
             {
                 var fi = xmlFiles[i];
                 Console.WriteLine(
@@ -57,9 +57,9 @@ namespace WastelandSaveTools.App
             Console.WriteLine();
 
             Console.Write("> ");
-            string? input = Console.ReadLine();
-            int index = 0;
-            if (!string.IsNullOrWhiteSpace(input) && int.TryParse(input, out int parsed))
+            var input = Console.ReadLine();
+            var index = 0;
+            if (!string.IsNullOrWhiteSpace(input) && int.TryParse(input, out var parsed))
             {
                 index = Math.Clamp(parsed - 1, 0, xmlFiles.Count - 1);
             }
@@ -72,7 +72,7 @@ namespace WastelandSaveTools.App
             Console.WriteLine();
 
             // 3. Choose output directory (also used for logs)
-            string outDir = Path.Combine(
+            var outDir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                 "Downloads",
                 "WL3Saves"
@@ -84,29 +84,29 @@ namespace WastelandSaveTools.App
             {
                 // 4. Extract XML from the WL3 file
                 Logger.Log("Step: Extracting XML from save...");
-                string xml = SaveReader.ExtractXml(chosenFile);
+                var xml = SaveReader.ExtractXml(chosenFile);
                 Logger.Log($"Step: XML extracted. Length={xml.Length} chars.");
 
                 // 5. Build raw + parsed state
                 Logger.Log("Step: Extracting raw state...");
-                RawSaveState rawState = StateExtractor.Extract(xml);
+                var rawState = StateExtractor.Extract(xml);
                 Logger.Log("Step: Raw state extracted.");
 
                 Logger.Log("Step: Parsing state...");
-                ParsedSaveState parsedState = StateParser.Parse(rawState);
+                var parsedState = StateParser.Parse(rawState);
                 Logger.Log("Step: Parsed state built.");
 
                 // 6. Build normalized state for AI / tooling
                 Logger.Log("Step: Normalizing state...");
-                NormalizedSaveState normalized = Normalizer.Normalize(rawState, parsedState, ToolVersion);
+                var normalized = Normalizer.Normalize(rawState, parsedState, ToolVersion);
                 Logger.Log("Step: Normalized state built.");
 
                 // 7. Ensure output directory exists
                 Directory.CreateDirectory(outDir);
 
                 // 8. Choose base filename
-                string baseName = Path.GetFileNameWithoutExtension(chosenFile);
-                string basePath = Path.Combine(outDir, baseName);
+                var baseName = Path.GetFileNameWithoutExtension(chosenFile);
+                var basePath = Path.Combine(outDir, baseName);
 
                 var compactOptions = new JsonSerializerOptions
                 {

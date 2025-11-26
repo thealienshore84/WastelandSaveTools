@@ -14,8 +14,8 @@ namespace WastelandSaveTools.App
         /// </summary>
         public static int Decompress(byte[] input, int inputLength, byte[] output, int outputLength)
         {
-            int inPtr = 0;
-            int outPtr = 0;
+            var inPtr = 0;
+            var outPtr = 0;
 
             while (inPtr < inputLength && outPtr < outputLength)
             {
@@ -26,7 +26,9 @@ namespace WastelandSaveTools.App
                     // Literal run
                     ctrl += 1;
                     if (outPtr + ctrl > outputLength || inPtr + ctrl > inputLength)
+                    {
                         return 0;
+                    }
 
                     Array.Copy(input, inPtr, output, outPtr, ctrl);
                     inPtr += ctrl;
@@ -35,28 +37,37 @@ namespace WastelandSaveTools.App
                 else
                 {
                     // Back-reference
-                    int len = ctrl >> 5;
-                    int refOffset = outPtr - ((ctrl & 0x1F) << 8) - 1;
+                    var len = ctrl >> 5;
+                    var refOffset = outPtr - ((ctrl & 0x1F) << 8) - 1;
 
                     if (inPtr >= inputLength)
+                    {
                         return 0;
+                    }
 
                     if (len == 7)
                     {
                         if (inPtr >= inputLength)
+                        {
                             return 0;
+                        }
+
                         len += input[inPtr++];
                     }
 
                     if (inPtr >= inputLength)
+                    {
                         return 0;
+                    }
 
                     refOffset -= input[inPtr++];
 
                     if (refOffset < 0 || outPtr + len + 2 > outputLength)
+                    {
                         return 0;
+                    }
 
-                    for (int i = 0; i < len + 2; i++)
+                    for (var i = 0; i < len + 2; i++)
                     {
                         output[outPtr++] = output[refOffset + i];
                     }

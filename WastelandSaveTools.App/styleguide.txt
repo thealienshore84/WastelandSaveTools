@@ -1,0 +1,116 @@
+﻿C# STYLE GUIDE v1.0
+
+1. GENERAL PRINCIPLES
+- Clarity over cleverness.
+- Code should read top-to-bottom like a story.
+- Fail loudly when something truly unexpected happens.
+- Handle expected failures gracefully.
+- Avoid hidden behavior; keep logic obvious and visible.
+- Use modern C# features only when they improve readability.
+
+2. BRACES & LAYOUT
+- Opening brace always on its own line (Allman style).
+- Always use braces, even for one-line statements.
+- Use blank lines to separate conceptual blocks, not every statement.
+- Indentation: press Tab, accept whatever the IDE does (typically 4 spaces).
+
+3. LOCALS, FIELDS, AND THIS
+- Always use “var” for local variables. If inference is wrong, fix the right-hand side, not the left.
+- Fields and properties use PascalCase. No underscores.
+- Always prefix class-level fields/properties with “this.” for clarity.
+
+4. CONTROL FLOW
+- Prefer early returns to reduce nesting.
+- Small compound conditions (2–3 checks) on one line.
+- Larger or complex conditions become multiple if-statements with early returns.
+- Avoid giant switch statements; prefer readable if-chains for command routing.
+
+5. STRING & NULL HANDLING
+- Use string.IsNullOrWhiteSpace (or appropriate variant) instead of direct comparisons.
+- For non-string null checks, prefer pattern matching: “if (x is null)”.
+- Only check for null when it might realistically happen or when needed for clarity.
+- Internal methods can assume trusted inputs.
+- Use null-forgiving operator (!) rarely and only when logically guaranteed safe.
+
+6. EXCEPTIONS
+- Top-level exception handler near entry point for logging & graceful shutdown.
+- During development: let exceptions crash loudly to expose issues.
+- Add try/catch at infrastructure boundaries (file IO, network, DB).
+- Expected failures → graceful handling (null, empty).
+- Unexpected failures → throw exceptions.
+
+7. RETURN PATTERNS
+- Return null when “not found” or “not available” is normal behavior.
+- Use TryX(out result) when the caller needs explicit success/failure.
+- Use result objects (e.g. FetchResult<T>) only for complex operations with multiple possible outcomes.
+- Let method semantics decide the pattern.
+
+8. OBJECT CREATION
+- Prefer constructors for simple cases.
+- Prefer factory methods when creation semantics matter:
+  - Example: MyClass.CreateNew(), .FromExisting(), .RestoreFromFile(), etc.
+- Avoid object initializers for anything non-trivial because debugging them is annoying.
+
+9. LINQ
+- Prefer sequential, stepwise LINQ over giant chained expressions.
+- Use LINQ when it improves clarity; use loops when they are clearer.
+- Never force LINQ or loops out of ideology.
+
+10. LOOPS
+- foreach by default.
+- Use “for” only when an index is actually needed.
+
+11. ASYNC
+- Do not force async everywhere.
+- Async when operation is inherently async (IO, network).
+- Sync when operation is CPU-bound or trivial.
+- Provide both sync and async variants when appropriate (Load / LoadAsync).
+- Expression-bodied async only for trivial wrappers; otherwise full block.
+
+12. USING & DISPOSABLES
+- Prefer explicit using blocks:
+  using (stream)
+  {
+      ...
+  }
+- For multiple disposables, stack using statements without nesting:
+  using (a)
+  using (b)
+  using (c)
+  {
+      ...
+  }
+- Open to “using var” style only if it doesn’t hurt readability or debugging.
+
+13. PROPERTIES
+- Prefer auto-properties.
+- Avoid logic in getters/setters; keep behavior in methods.
+- Full properties only when enforcing invariants or required by a framework.
+
+14. NAMING
+- Interfaces prefixed with “I” (classic .NET): ISettingsProvider.
+- Helper methods: as short as possible but explicit when multiple versions exist.
+- Fields: role-based names, not type names (WebClient, DbClient, Logger).
+- Use nameof() when it improves clarity (ArgumentNullException, logging).
+
+15. CLASS & FILE STRUCTURE
+- One public class per file by default.
+- Tiny, tightly-related helper types (DTOs, enums) may share a file.
+- Class ordering:
+  1. Fields
+  2. Constructors
+  3. Public members
+  4. Internal/protected members
+  5. Private helpers
+- Avoid regions in your own code.
+- Partial classes only when required (e.g. generated code).
+
+16. SOLUTION STRUCTURE
+- Small personal utilities: single project is fine.
+- Significant applications get layers:
+  - Core/Domain
+  - Application/Services
+  - Infrastructure
+  - UI
+  - Tests
+- Don’t overengineer tiny tools; do layer anything with real structure.

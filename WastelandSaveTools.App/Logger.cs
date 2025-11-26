@@ -17,12 +17,14 @@ namespace WastelandSaveTools.App
         public static void Init(string outputDirectory)
         {
             if (string.IsNullOrWhiteSpace(outputDirectory))
+            {
                 return;
+            }
 
             try
             {
                 Directory.CreateDirectory(outputDirectory);
-                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 _logFilePath = Path.Combine(outputDirectory, $"W3Tools_{timestamp}.log");
                 Log("=== Log started ===");
             }
@@ -36,11 +38,13 @@ namespace WastelandSaveTools.App
         public static void Log(string message)
         {
             if (string.IsNullOrEmpty(_logFilePath))
+            {
                 return;
+            }
 
             try
             {
-                string line = $"{DateTime.Now:O} {message}{Environment.NewLine}";
+                var line = $"{DateTime.Now:O} {message}{Environment.NewLine}";
                 lock (_sync)
                 {
                     File.AppendAllText(_logFilePath, line);
