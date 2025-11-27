@@ -212,6 +212,19 @@ namespace WastelandSaveTools.App
             get; set;
         }
 
+        public int UnspentAttributePoints
+        {
+            get; set;
+        }
+        public int UnspentSkillPoints
+        {
+            get; set;
+        }
+        public int UnspentPerkPoints
+        {
+            get; set;
+        }
+
         public int Level
         {
             get; set;
