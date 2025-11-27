@@ -45,11 +45,11 @@ namespace WastelandSaveTools.App
 
             return new ParsedSummary
             {
-                Version = raw.Summary.Version ?? "",
-                Scene = raw.Summary.Scene ?? "",
-                SaveTime = raw.Summary.SaveTime ?? "",
+                Version = raw.Summary.Version ?? string.Empty,
+                Scene = raw.Summary.Scene ?? string.Empty,
+                SaveTime = raw.Summary.SaveTime ?? string.Empty,
                 GameplaySeconds = gameplaySeconds,
-                Difficulty = raw.Summary.Difficulty ?? "",
+                Difficulty = raw.Summary.Difficulty ?? string.Empty,
                 Money = money
             };
         }
@@ -395,7 +395,7 @@ namespace WastelandSaveTools.App
                 if (itemsEl.Ancestors("container").Any())
                     continue;
 
-                var owner = itemsEl.Attribute("owner")?.Value ?? "";
+                var owner = itemsEl.Attribute("owner")?.Value ?? string.Empty;
                 if (string.IsNullOrWhiteSpace(owner))
                     continue;
 
@@ -463,9 +463,9 @@ namespace WastelandSaveTools.App
                     var c = new ParsedContainerRecord
                     {
                         Id = cEl.Element("id")?.Value ??
-                             cEl.Attribute("id")?.Value ?? "",
+                             cEl.Attribute("id")?.Value ?? string.Empty,
                         Name = cEl.Element("name")?.Value ??
-                               cEl.Element("displayName")?.Value ?? "",
+                               cEl.Element("displayName")?.Value ?? string.Empty,
                         Type = cEl.Element("type")?.Value ??
                                cEl.Attribute("type")?.Value ?? contextHint,
                         Data = Flatten(cEl)
@@ -501,7 +501,7 @@ namespace WastelandSaveTools.App
                 if (itemsEl.Ancestors("container").Any())
                     continue;
 
-                string contextAttr = itemsEl.Attribute("context")?.Value ?? "";
+                string contextAttr = itemsEl.Attribute("context")?.Value ?? string.Empty;
                 string context = string.IsNullOrWhiteSpace(contextAttr)
                     ? contextHint
                     : contextAttr;
@@ -510,7 +510,7 @@ namespace WastelandSaveTools.App
                 {
                     try
                     {
-                        var item = BuildItemRecord(itemEl, "");
+                        var item = BuildItemRecord(itemEl, string.Empty);
                         item.Context = context;
                         target.Items.Add(item);
                     }
@@ -580,7 +580,7 @@ namespace WastelandSaveTools.App
                     if (string.IsNullOrWhiteSpace(key))
                         continue;
 
-                    var value = g.Element("v")?.Value ?? "";
+                    var value = g.Element("v")?.Value ?? string.Empty;
 
                     target.Globals.Add(new GlobalFlag
                     {
@@ -687,17 +687,17 @@ namespace WastelandSaveTools.App
             {
                 Id = el.Element("uid")?.Value ??
                      el.Element("id")?.Value ??
-                     el.Attribute("id")?.Value ?? "",
+                     el.Attribute("id")?.Value ?? string.Empty,
                 Template = el.Element("templateName")?.Value ??
-                           el.Element("template")?.Value ?? "",
+                           el.Element("template")?.Value ?? string.Empty,
                 Name = el.Element("displayName")?.Value ??
-                       el.Element("name")?.Value ?? "",
+                       el.Element("name")?.Value ?? string.Empty,
                 Owner = owner
             };
 
             var data = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var child in el.Elements())
-                data[child.Name.LocalName] = child.Value ?? "";
+                data[child.Name.LocalName] = child.Value ?? string.Empty;
 
             if (!string.IsNullOrWhiteSpace(owner))
                 data["Owner"] = owner;
@@ -713,7 +713,7 @@ namespace WastelandSaveTools.App
             foreach (var el in element.DescendantsAndSelf())
             {
                 var key = el.Name.LocalName;
-                var value = el.Value ?? "";
+                var value = el.Value ?? string.Empty;
                 if (!dict.ContainsKey(key))
                     dict[key] = value;
             }

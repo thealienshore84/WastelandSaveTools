@@ -64,12 +64,12 @@ namespace WastelandSaveTools.App
             }
 
             // Summary extraction
-            result.Summary.Version = root.Attribute("version")?.Value ?? "";
-            result.Summary.Scene = root.Attribute("scene")?.Value ?? "";
-            result.Summary.SaveTime = root.Attribute("saveTime")?.Value ?? "";
-            result.Summary.GameplayTime = root.Attribute("gameplayTime")?.Value ?? "";
-            result.Summary.Difficulty = root.Attribute("difficulty")?.Value ?? "";
-            result.Summary.Money = root.Attribute("money")?.Value ?? "";
+            result.Summary.Version = root.Attribute("version")?.Value ?? string.Empty;
+            result.Summary.Scene = root.Attribute("scene")?.Value ?? string.Empty;
+            result.Summary.SaveTime = root.Attribute("saveTime")?.Value ?? string.Empty;
+            result.Summary.GameplayTime = root.Attribute("gameplayTime")?.Value ?? string.Empty;
+            result.Summary.Difficulty = root.Attribute("difficulty")?.Value ?? string.Empty;
+            result.Summary.Money = root.Attribute("money")?.Value ?? string.Empty;
 
             // Individual sections
             ExtractSection(doc, "levels", result.Xml, issues);

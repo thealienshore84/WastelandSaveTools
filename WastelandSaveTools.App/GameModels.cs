@@ -8,41 +8,41 @@ namespace WastelandSaveTools.App
 
     public class RawSummary
     {
-        public string Version { get; set; } = "";
-        public string Scene { get; set; } = "";
-        public string SaveTime { get; set; } = "";
-        public string GameplayTime { get; set; } = "";
-        public string Difficulty { get; set; } = "";
-        public string Money { get; set; } = "";
+        public string Version { get; set; } = string.Empty;
+        public string Scene { get; set; } = string.Empty;
+        public string SaveTime { get; set; } = string.Empty;
+        public string GameplayTime { get; set; } = string.Empty;
+        public string Difficulty { get; set; } = string.Empty;
+        public string Money { get; set; } = string.Empty;
     }
 
     public class RawXmlSections
     {
-        public string Levels { get; set; } = "";
-        public string Globals { get; set; } = "";
-        public string Quests { get; set; } = "";
-        public string Reputation { get; set; } = "";
-        public string Pcs { get; set; } = "";
-        public string Followers { get; set; } = "";
-        public string Inventory { get; set; } = "";
-        public string Vehicle { get; set; } = "";
+        public string Levels { get; set; } = string.Empty;
+        public string Globals { get; set; } = string.Empty;
+        public string Quests { get; set; } = string.Empty;
+        public string Reputation { get; set; } = string.Empty;
+        public string Pcs { get; set; } = string.Empty;
+        public string Followers { get; set; } = string.Empty;
+        public string Inventory { get; set; } = string.Empty;
+        public string Vehicle { get; set; } = string.Empty;
     }
 
     public class RawAttributes
     {
-        public string Coordination { get; set; } = "";
-        public string Awareness { get; set; } = "";
-        public string Strength { get; set; } = "";
-        public string Speed { get; set; } = "";
-        public string Intelligence { get; set; } = "";
-        public string Charisma { get; set; } = "";
-        public string Luck { get; set; } = "";
+        public string Coordination { get; set; } = string.Empty;
+        public string Awareness { get; set; } = string.Empty;
+        public string Strength { get; set; } = string.Empty;
+        public string Speed { get; set; } = string.Empty;
+        public string Intelligence { get; set; } = string.Empty;
+        public string Charisma { get; set; } = string.Empty;
+        public string Luck { get; set; } = string.Empty;
     }
 
     public class RawSkillRecord
     {
-        public string Id { get; set; } = "";
-        public string Level { get; set; } = "";
+        public string Id { get; set; } = string.Empty;
+        public string Level { get; set; } = string.Empty;
     }
 
     public class RawCharacterRecord
@@ -101,10 +101,10 @@ namespace WastelandSaveTools.App
 
     public class RawItemRecord
     {
-        public string Id { get; set; } = "";
-        public string Template { get; set; } = "";
-        public string Name { get; set; } = "";
-        public string Quantity { get; set; } = "";
+        public string Id { get; set; } = string.Empty;
+        public string Template { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Quantity { get; set; } = string.Empty;
         public string? OwnerName
         {
             get; set;
@@ -117,7 +117,7 @@ namespace WastelandSaveTools.App
 
     public class RawContainerRecord
     {
-        public string Id { get; set; } = "";
+        public string Id { get; set; } = string.Empty;
         public string? Name
         {
             get; set;
@@ -142,7 +142,7 @@ namespace WastelandSaveTools.App
         /// Full XML text of the save. Used as a fallback when specific sections
         /// are missing from RawXmlSections.
         /// </summary>
-        public string RawXml { get; set; } = "";
+        public string RawXml { get; set; } = string.Empty;
     }
 
     // -----------------------------
@@ -189,7 +189,7 @@ namespace WastelandSaveTools.App
         /// <summary>
         /// Skill ID from the save (e.g. "Skill_WeirdScience").
         /// </summary>
-        public string Id { get; set; } = "";
+        public string Id { get; set; } = string.Empty;
 
         /// <summary>
         /// Skill level as an integer.
@@ -202,7 +202,7 @@ namespace WastelandSaveTools.App
 
     public class ParsedCharacter
     {
-        public string Name { get; set; } = "";
+        public string Name { get; set; } = string.Empty;
         public bool IsCompanion
         {
             get; set;
@@ -238,7 +238,7 @@ namespace WastelandSaveTools.App
         public List<ParsedSkill> Skills { get; set; } = new();
         public List<string> Perks { get; set; } = new();
         public List<string> Quirks { get; set; } = new();
-        public string Background { get; set; } = "";
+        public string Background { get; set; } = string.Empty;
         public List<string> Abilities { get; set; } = new();
     }
 
@@ -248,7 +248,7 @@ namespace WastelandSaveTools.App
         {
             get; set;
         }
-        public string Name { get; set; } = "";
+        public string Name { get; set; } = string.Empty;
         public string? OwnerName
         {
             get; set;
@@ -262,13 +262,13 @@ namespace WastelandSaveTools.App
         /// Name of the PC this follower is attached to, e.g. "Astra".
         /// Populated from followerdata.pcName and animalCompanions.ownerName.
         /// </summary>
-        public string AssignedTo { get; set; } = "";
+        public string AssignedTo { get; set; } = string.Empty;
 
         /// <summary>
         /// High-level type such as "Animal" or "Unknown".
         /// Populated when parsing animal companions.
         /// </summary>
-        public string Type { get; set; } = "";
+        public string Type { get; set; } = string.Empty;
 
         /// <summary>
         /// Whether this follower is currently active in the party.
@@ -281,9 +281,9 @@ namespace WastelandSaveTools.App
 
     public class ParsedItemRecord
     {
-        public string Id { get; set; } = "";
-        public string Template { get; set; } = "";
-        public string Name { get; set; } = "";
+        public string Id { get; set; } = string.Empty;
+        public string Template { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
         public int Quantity
         {
             get; set;
@@ -306,7 +306,7 @@ namespace WastelandSaveTools.App
         /// Normalized owner name used by the normalizer (PC name or container name).
         /// Set by StateParser.BuildItemRecord.
         /// </summary>
-        public string Owner { get; set; } = "";
+        public string Owner { get; set; } = string.Empty;
 
         /// <summary>
         /// Flat key/value map of all child elements of the item element,
@@ -320,8 +320,8 @@ namespace WastelandSaveTools.App
 
     public class ParsedContainerRecord
     {
-        public string Id { get; set; } = "";
-        public string Name { get; set; } = "";
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
         public string? Context
         {
             get; set;
@@ -330,7 +330,7 @@ namespace WastelandSaveTools.App
         /// <summary>
         /// Container type from the XML (or inferred from context).
         /// </summary>
-        public string Type { get; set; } = "";
+        public string Type { get; set; } = string.Empty;
 
         /// <summary>
         /// Flat key/value map of container attributes and children.
@@ -343,14 +343,14 @@ namespace WastelandSaveTools.App
 
     public class ParsedSummary
     {
-        public string Version { get; set; } = "";
-        public string Scene { get; set; } = "";
-        public string SaveTime { get; set; } = "";
+        public string Version { get; set; } = string.Empty;
+        public string Scene { get; set; } = string.Empty;
+        public string SaveTime { get; set; } = string.Empty;
         public int GameplaySeconds
         {
             get; set;
         }
-        public string Difficulty { get; set; } = "";
+        public string Difficulty { get; set; } = string.Empty;
         public int Money
         {
             get; set;
@@ -365,12 +365,12 @@ namespace WastelandSaveTools.App
         /// <summary>
         /// Key from the save, e.g. "HQ.MajorTom.Recruited".
         /// </summary>
-        public string Key { get; set; } = "";
+        public string Key { get; set; } = string.Empty;
 
         /// <summary>
         /// Raw string value from the save.
         /// </summary>
-        public string Value { get; set; } = "";
+        public string Value { get; set; } = string.Empty;
     }
 
     public class ParsedSaveState
@@ -413,18 +413,18 @@ namespace WastelandSaveTools.App
         /// Component or stage where this issue occurred,
         /// for example "StateExtractor", "StateParser.ParseCharacters".
         /// </summary>
-        public string Component { get; set; } = "";
+        public string Component { get; set; } = string.Empty;
 
         /// <summary>
         /// Optional contextual tag, for example "pcs", "followers",
         /// "globals", "inventory", or "save".
         /// </summary>
-        public string Context { get; set; } = "";
+        public string Context { get; set; } = string.Empty;
 
         /// <summary>
         /// Human readable description of the problem.
         /// </summary>
-        public string Message { get; set; } = "";
+        public string Message { get; set; } = string.Empty;
 
         /// <summary>
         /// Line number in the XML, if available.
