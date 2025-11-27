@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
 
@@ -30,7 +31,7 @@ namespace WastelandSaveTools.App
             result.Summary.Difficulty = root.Attribute("difficulty")?.Value ?? "";
             result.Summary.Money = root.Attribute("money")?.Value ?? "";
 
-            // Individual blocks
+            // Sections
             result.Xml.Levels = ExtractSection(doc, "levels") ?? "";
             result.Xml.Globals = ExtractSection(doc, "globals") ?? "";
             result.Xml.Quests = ExtractSection(doc, "quests") ?? "";
@@ -44,6 +45,15 @@ namespace WastelandSaveTools.App
             result.RawXml = xml;
 
             return result;
+        }
+
+        public static RawSaveState Extract(string xml, List<ExportIssue>? issues)
+        {
+            // Currently we do not populate issues in StateExtractor.
+            // This overload exists so callers can start passing an issue list
+            // without changing behavior. Future versions can add detailed
+            // XML parsing diagnostics here.
+            return Extract(xml);
         }
 
         private static string ExtractSection(XDocument doc, string name)

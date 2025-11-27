@@ -34,6 +34,12 @@ namespace WastelandSaveTools.App
             return parsed;
         }
 
+        public static ParsedSaveState Parse(RawSaveState raw, List<ExportIssue>? issues)
+        {
+            // Phase 3 issue plumbing - issues will be populated later.
+            return Parse(raw);
+        }
+
         private static ParsedSummary BuildSummary(RawSaveState raw)
         {
             var gameplaySeconds = int.TryParse(raw.Summary.GameplayTime, out var t) ? t : 0;
@@ -53,156 +59,196 @@ namespace WastelandSaveTools.App
         // --------------------------
         //  CHARACTER PARSING
         // --------------------------
+
         private static void ParseCharacters(RawSaveState raw, ParsedSaveState target)
         {
-            var pcsXml = raw.Xml.Pcs ?? "";
-
-            if (string.IsNullOrWhiteSpace(pcsXml) && !string.IsNullOrWhiteSpace(raw.RawXml))
-            {
-                try
-                {
-                    var full = XDocument.Parse(raw.RawXml);
-                    var pcs = full.Descendants("pcs").FirstOrDefault();
-                    if (pcs != null)
-                    {
-                        pcsXml = pcs.ToString(SaveOptions.DisableFormatting);
-                    }
-                }
-                catch { }
-            }
-
-            if (string.IsNullOrWhiteSpace(pcsXml))
+            if (string.IsNullOrWhiteSpace(raw.Xml.Pcs))
             {
                 return;
             }
 
-            var pcsDoc = XDocument.Parse(pcsXml!);
-
-            var root = pcsDoc.Root!;
-            var pcsElement =
-                root.Name.LocalName.Equals("pcs", StringComparison.OrdinalIgnoreCase)
-                    ? root
-                    : root.Element("pcs") ?? root;
-
-            foreach (var pc in pcsElement.Elements("pc"))
+            try
             {
-                var name = pc.Element("displayName")?.Value;
-                var companionId = ReadInt(pc, "companionId");
-                var isCompanion = companionId > 0;
+                var pcsDoc = XDocument.Parse(raw.Xml.Pcs!);
+                var root = pcsDoc.Root!;
+                var pcsElement =
+                    root.Name.LocalName.Equals("pcs", StringComparison.OrdinalIgnoreCase)
+                        ? root
+                        : root.Element("pcs") ?? root;
 
-                if (string.IsNullOrWhiteSpace(name))
+                foreach (var pc in pcsElement.Elements("pc"))
                 {
-                    name = TryInferPcName(pc);
-                }
+                    var name = pc.Element("displayName")?.Value;
+                    var companionId = ReadInt(pc, "companionId");
+                    var isCompanion = companionId > 0;
 
-                if (string.IsNullOrWhiteSpace(name) &&
-                    isCompanion &&
-                    CompanionIdToName.TryGetValue(companionId, out var mapped))
-                {
-                    name = mapped;
-                }
-
-                if (string.IsNullOrWhiteSpace(name))
-                {
-                    if (isCompanion)
+                    if (string.IsNullOrWhiteSpace(name))
                     {
-                        name = $"Companion #{companionId}";
+                        name = TryInferPcName(pc);
                     }
-                    else
-                    {
-                        continue;
-                    }
-                }
 
-                var ch = new ParsedCharacter
-                {
-                    Name = name!,
-                    IsCompanion = isCompanion,
-                    IsCustomName = ReadBool(pc, "isCustomDisplayName"),
-                    Level = ReadInt(pc, "level"),
-                    XP = ReadInt(pc, "xp"),
-                    Attributes = new ParsedAttributes
+                    if (string.IsNullOrWhiteSpace(name))
                     {
-                        Coordination = ReadInt(pc, "coordination"),
-                        Awareness = ReadInt(pc, "awareness"),
-                        Strength = ReadInt(pc, "strength"),
-                        Speed = ReadInt(pc, "speed"),
-                        Intelligence = ReadInt(pc, "intelligence"),
-                        Charisma = ReadInt(pc, "charisma"),
-                        Luck = ReadInt(pc, "luck")
-                    }
-                };
-
-                var skillsEl = pc.Element("skills");
-                if (skillsEl != null)
-                {
-                    foreach (var skill in skillsEl.Elements("skill"))
-                    {
-                        var id = skill.Element("skillId")?.Value;
-                        if (string.IsNullOrWhiteSpace(id))
+                        if (isCompanion)
+                        {
+                            name = $"Companion #{companionId}";
+                        }
+                        else
                         {
                             continue;
                         }
-
-                        ch.Skills.Add(new ParsedSkill
-                        {
-                            Id = id!,
-                            Level = ReadInt(skill, "level")
-                        });
                     }
-                }
 
-                var abilitiesEl = pc.Element("abilities");
-                if (abilitiesEl != null)
-                {
-                    foreach (var ab in abilitiesEl.Elements("ability"))
+                    var ch = new ParsedCharacter
                     {
-                        var val = ab.Value;
-                        if (!string.IsNullOrWhiteSpace(val))
+                        Name = name,
+                        IsCompanion = isCompanion,
+                        IsCustomName = !isCompanion,
+                        Level = ReadInt(pc, "level"),
+                        XP = ReadInt(pc, "xp"),
+                        Attributes = new ParsedAttributes
                         {
-                            ch.Abilities.Add(val);
+                            Coordination = ReadInt(pc, "coordination"),
+                            Awareness = ReadInt(pc, "awareness"),
+                            Strength = ReadInt(pc, "strength"),
+                            Speed = ReadInt(pc, "speed"),
+                            Intelligence = ReadInt(pc, "intelligence"),
+                            Charisma = ReadInt(pc, "charisma"),
+                            Luck = ReadInt(pc, "luck")
+                        }
+                    };
+
+                    var skillsEl = pc.Element("skills");
+                    if (skillsEl != null)
+                    {
+                        foreach (var skill in skillsEl.Elements("skill"))
+                        {
+                            var id = skill.Element("skillId")?.Value;
+                            if (string.IsNullOrWhiteSpace(id))
+                            {
+                                continue;
+                            }
+
+                            ch.Skills.Add(new ParsedSkill
+                            {
+                                Id = id!,
+                                Level = ReadInt(skill, "level")
+                            });
                         }
                     }
-                }
 
-                target.Characters.Add(ch);
+                    var perksEl = pc.Element("perks");
+                    if (perksEl != null)
+                    {
+                        foreach (var p in perksEl.Elements("perk"))
+                        {
+                            var val = p.Value;
+                            if (!string.IsNullOrWhiteSpace(val))
+                            {
+                                ch.Perks.Add(val);
+                            }
+                        }
+                    }
+
+                    var quirksEl = pc.Element("quirks");
+                    if (quirksEl != null)
+                    {
+                        foreach (var q in quirksEl.Elements("quirk"))
+                        {
+                            var val = q.Value;
+                            if (!string.IsNullOrWhiteSpace(val))
+                            {
+                                ch.Quirks.Add(val);
+                            }
+                        }
+                    }
+
+                    var backgroundEl = pc.Element("background");
+                    if (backgroundEl != null)
+                    {
+                        var val = backgroundEl.Value;
+                        if (!string.IsNullOrWhiteSpace(val))
+                        {
+                            ch.Background = val;
+                        }
+                    }
+
+                    var abilitiesEl = pc.Element("abilities");
+                    if (abilitiesEl != null)
+                    {
+                        foreach (var ab in abilitiesEl.Elements("ability"))
+                        {
+                            var val = ab.Value;
+                            if (!string.IsNullOrWhiteSpace(val))
+                            {
+                                ch.Abilities.Add(val);
+                            }
+                        }
+                    }
+
+                    target.Characters.Add(ch);
+                }
+            }
+            catch
+            {
+                // For now we fail silently - issues will be wired in later.
             }
         }
 
-        // nullable return is explicit now
         private static string? TryInferPcName(XElement pc)
         {
-            foreach (var t in pc.Descendants("templateName"))
-            {
-                var v = t.Value;
-                if (string.IsNullOrWhiteSpace(v))
-                {
-                    continue;
-                }
+            // Sometimes the "displayName" is empty but "name" or "speakerName"
+            // contains a useful identifier.
 
-                var m = Regex.Match(v, "CNPC_([A-Za-z0-9]+)");
-                if (m.Success)
+            var name = pc.Element("name")?.Value;
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                return name;
+            }
+
+            // Try to infer from "tag" entries, e.g. CNPC_Kwon
+            var tagsEl = pc.Element("tags");
+            if (tagsEl != null)
+            {
+                foreach (var t in tagsEl.Elements("tag"))
                 {
-                    return m.Groups[1].Value;
+                    var v = t.Value;
+                    if (string.IsNullOrWhiteSpace(v))
+                    {
+                        continue;
+                    }
+
+                    var m = Regex.Match(v, "CNPC_([A-Za-z0-9]+)");
+                    if (m.Success)
+                    {
+                        return m.Groups[1].Value;
+                    }
                 }
             }
 
             var speaker = pc.Element("speakerName")?.Value;
-            return string.IsNullOrWhiteSpace(speaker) ? null : speaker;
+            if (!string.IsNullOrWhiteSpace(speaker))
+            {
+                return speaker;
+            }
+
+            return null;
         }
 
         // --------------------------
-        //  FOLLOWERS
+        //  FOLLOWER PARSING
         // --------------------------
+
         private static void ParseFollowers(RawSaveState raw, ParsedSaveState target)
         {
             var list = new List<ParsedFollower>();
 
+            // Followers from the <followers> block.
             if (!string.IsNullOrWhiteSpace(raw.Xml.Followers))
             {
                 try
                 {
-                    var doc = XDocument.Parse(raw.Xml.Followers);
+                    var doc = XDocument.Parse(raw.Xml.Followers!);
                     var root = doc.Root;
                     if (root != null)
                     {
@@ -225,25 +271,34 @@ namespace WastelandSaveTools.App
                         }
                     }
                 }
-                catch { }
+                catch
+                {
+                }
             }
 
-            try
+            // Animal companions from the <globals> or other blocks (if needed).
+            // For now we treat animal companions as a special-case extension of
+            // followers when they appear in the followers XML.
+            if (!string.IsNullOrWhiteSpace(raw.Xml.Followers))
             {
-                if (!string.IsNullOrWhiteSpace(raw.RawXml) &&
-                    raw.RawXml.Contains("<animalCompanions", StringComparison.OrdinalIgnoreCase))
+                try
                 {
-                    var doc = XDocument.Parse(raw.RawXml);
-                    var root = doc.Descendants("animalCompanions").FirstOrDefault();
+                    var doc = XDocument.Parse(raw.Xml.Followers!);
+                    var root = doc.Root;
                     if (root != null)
                     {
-                        foreach (var ad in root.Elements("animaldata"))
+                        foreach (var acEl in root.Descendants("animalCompanions"))
                         {
-                            var id = ReadInt(ad, "follower");
-                            var assigned = ad.Element("pcName")?.Value ?? "";
-                            var typeId = ReadInt(ad, "id");
+                            var typeId = acEl.Element("type")?.Value ?? "";
+                            var assigned = acEl.Element("ownerName")?.Value ?? "";
 
-                            var f = list.FirstOrDefault(x => x.FollowerId == id);
+                            if (string.IsNullOrWhiteSpace(typeId))
+                            {
+                                continue;
+                            }
+
+                            var id = ReadInt(acEl, "id");
+                            ParsedFollower? f = list.FirstOrDefault(x => x.FollowerId == id);
                             if (f == null)
                             {
                                 f = new ParsedFollower
@@ -263,8 +318,10 @@ namespace WastelandSaveTools.App
                         }
                     }
                 }
+                catch
+                {
+                }
             }
-            catch { }
 
             target.Followers.AddRange(list);
         }
@@ -272,6 +329,7 @@ namespace WastelandSaveTools.App
         // --------------------------
         //  INVENTORY + CONTAINERS
         // --------------------------
+
         private static void ParseInventoryAndContainers(RawSaveState raw, ParsedSaveState target)
         {
             ParseCharacterInventory(raw, target);
@@ -281,60 +339,49 @@ namespace WastelandSaveTools.App
 
         private static void ParseCharacterInventory(RawSaveState raw, ParsedSaveState target)
         {
-            var pcsXml = raw.Xml.Pcs ?? "";
-
-            if (string.IsNullOrWhiteSpace(pcsXml) && !string.IsNullOrWhiteSpace(raw.RawXml))
-            {
-                try
-                {
-                    var doc = XDocument.Parse(raw.RawXml);
-                    var pcs = doc.Descendants("pcs").FirstOrDefault();
-                    if (pcs != null)
-                    {
-                        pcsXml = pcs.ToString(SaveOptions.DisableFormatting);
-                    }
-                }
-                catch { }
-            }
-
-            if (string.IsNullOrWhiteSpace(pcsXml))
+            if (string.IsNullOrWhiteSpace(raw.Xml.Inventory))
             {
                 return;
             }
 
-            var pcsDoc = XDocument.Parse(pcsXml!);
-            var root = pcsDoc.Root!;
-            var pcsElement =
-                root.Name.LocalName.Equals("pcs", StringComparison.OrdinalIgnoreCase)
-                    ? root
-                    : root.Element("pcs") ?? root;
-
-            foreach (var pc in pcsElement.Elements("pc"))
+            try
             {
-                var owner = pc.Element("displayName")?.Value ?? "";
-                var companionId = ReadInt(pc, "companionId");
-
-                if (string.IsNullOrWhiteSpace(owner))
+                var doc = XDocument.Parse(raw.Xml.Inventory!);
+                var root = doc.Root;
+                if (root == null)
                 {
-                    owner = TryInferPcName(pc) ?? "";
+                    return;
                 }
 
-                if (string.IsNullOrWhiteSpace(owner) &&
-                    CompanionIdToName.TryGetValue(companionId, out var mapped))
+                // We treat <inventory><items owner="PCName"> as character inventories
+                // for now and ignore more exotic patterns.
+                foreach (var itemsEl in root.Descendants("items"))
                 {
-                    owner = mapped;
-                }
+                    var owner = itemsEl.Attribute("owner")?.Value ?? "";
+                    var context = itemsEl.Attribute("context")?.Value ?? "characterInventory";
 
-                if (string.IsNullOrWhiteSpace(owner) && companionId > 0)
-                {
-                    owner = $"Companion #{companionId}";
-                }
+                    if (string.IsNullOrWhiteSpace(owner))
+                    {
+                        continue;
+                    }
 
-                foreach (var itemEl in pc.Descendants("item"))
-                {
-                    var rec = BuildItemRecord(itemEl, owner);
-                    target.Items.Add(rec);
+                    // If this is inside a container, that container will be handled
+                    // by ScanContainersAndItems instead.
+                    if (itemsEl.Ancestors("container").Any())
+                    {
+                        continue;
+                    }
+
+                    foreach (var itemEl in itemsEl.Elements("item"))
+                    {
+                        var item = BuildItemRecord(itemEl, owner);
+                        item.Context = context;
+                        target.Items.Add(item);
+                    }
                 }
+            }
+            catch
+            {
             }
         }
 
@@ -378,6 +425,12 @@ namespace WastelandSaveTools.App
 
             foreach (var itemsEl in root.Descendants("items"))
             {
+                var contextAttr = itemsEl.Attribute("context")?.Value ?? "";
+                var context = string.IsNullOrWhiteSpace(contextAttr)
+                    ? contextHint
+                    : contextAttr;
+
+                // Skip ones already processed as part of a container
                 if (itemsEl.Ancestors("container").Any())
                 {
                     continue;
@@ -386,7 +439,7 @@ namespace WastelandSaveTools.App
                 foreach (var itemEl in itemsEl.Elements("item"))
                 {
                     var item = BuildItemRecord(itemEl, "");
-                    item.Context = contextHint;
+                    item.Context = context;
                     target.Items.Add(item);
                 }
             }
@@ -409,9 +462,6 @@ namespace WastelandSaveTools.App
                 Owner = owner
             };
 
-            rec.Quantity =
-                int.TryParse(el.Element("quantity")?.Value, out var q) ? q : 1;
-
             var data = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var child in el.Elements())
             {
@@ -430,6 +480,7 @@ namespace WastelandSaveTools.App
         // --------------------------
         //  GLOBAL FLAGS
         // --------------------------
+
         private static void ParseGlobals(RawSaveState raw, ParsedSaveState target)
         {
             if (string.IsNullOrWhiteSpace(raw.Xml.Globals))
@@ -463,49 +514,44 @@ namespace WastelandSaveTools.App
                     });
                 }
             }
-            catch { }
+            catch
+            {
+            }
         }
 
         // --------------------------
         //  HELPERS
         // --------------------------
-        private static int ReadInt(XElement parent, string name)
-        {
-            var el = parent.Element(name);
-            return (el != null && int.TryParse(el.Value, out var v)) ? v : 0;
-        }
 
-        private static bool ReadBool(XElement parent, string name)
+        private static int ReadInt(XElement parent, string name)
         {
             var el = parent.Element(name);
             if (el == null)
             {
-                return false;
+                return 0;
             }
 
-            if (bool.TryParse(el.Value, out var b))
+            if (int.TryParse(el.Value, out var i))
             {
-                return b;
+                return i;
             }
 
-            return int.TryParse(el.Value, out var i) && i != 0;
+            return 0;
         }
 
-        private static Dictionary<string, string> Flatten(XElement el)
+        private static Dictionary<string, string> Flatten(XElement element)
         {
             var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (var node in el.DescendantsAndSelf())
-            {
-                if (!node.HasElements)
+            foreach (var el in element.DescendantsAndSelf())
+            {m
+                var key = el.Name.LocalName;
+                var value = el.Value ?? "";
+                if (dict.ContainsKey(key))
                 {
-                    dict[node.Name.LocalName] = node.Value ?? "";
+                    continue;
                 }
-            }
 
-            foreach (var attr in el.Attributes())
-            {
-                dict["@" + attr.Name.LocalName] = attr.Value ?? "";
+                dict[key] = value;
             }
 
             return dict;

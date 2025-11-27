@@ -26,120 +26,77 @@ namespace WastelandSaveTools.App
             var xmlFiles = FindXmlSaves(saveRoot);
             if (xmlFiles.Count == 0)
             {
-                Console.WriteLine("No .xml save files found under:");
+                Console.WriteLine("No .xml files were found under:");
                 Console.WriteLine($"  {saveRoot}");
+                Console.WriteLine();
+                Console.WriteLine("Hint: export at least one save using the in-game");
+                Console.WriteLine("      XML export option, then run this tool again.");
                 return;
             }
 
-            PrintSaveList(xmlFiles);
-
-            var outDir = GetOutputDirectory();
-            Directory.CreateDirectory(outDir);
-            Logger.Init(outDir);
-
-            Console.WriteLine();
-            Console.WriteLine("Enter the number of the save to export (default 1 = most recent):");
-            Console.WriteLine();
-            Console.Write("> ");
-
-            var input = Console.ReadLine();
-            var index = 0;
-
-            if (!string.IsNullOrWhiteSpace(input))
+            Console.WriteLine("Available XML saves:");
+            for (var i = 0; i < xmlFiles.Count; i++)
             {
-                if (!int.TryParse(input, out var parsed))
-                {
-                    Console.WriteLine("Invalid input. Exiting.");
-                    return;
-                }
-
-                index = Math.Clamp(parsed - 1, 0, xmlFiles.Count - 1);
+                Console.WriteLine($"  [{i + 1}] {xmlFiles[i].FullName}");
             }
 
-            var selected = xmlFiles[index];
-
             Console.WriteLine();
-            Console.WriteLine("Selected save:");
+            Console.Write("Enter the number of the save to export (default 1 = most recent): ");
+
+            var input = Console.ReadLine();
+            if (!int.TryParse(input, out var selection) ||
+                selection < 1 ||
+                selection > xmlFiles.Count)
+            {
+                selection = 1;
+            }
+
+            var selected = xmlFiles[selection - 1];
+            Console.WriteLine();
+            Console.WriteLine($"Selected save:");
             Console.WriteLine($"  {selected.FullName}");
             Console.WriteLine();
 
-            Logger.Log(
-                $"Starting export with chain. Tool={ToolVersion}, Selected='{selected.FullName}'");
+            var outDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                "Downloads",
+                "WL3Saves");
+
+            Directory.CreateDirectory(outDir);
+
+            Logger.Init(outDir);
 
             try
             {
                 var bundle = ExportWithChainUpTo(selected, xmlFiles, outDir);
 
-                Console.WriteLine("Export complete.");
-                Console.WriteLine("Main bundle (current + chain):");
-                Console.WriteLine($"  {bundle.BundleBasePath}.export.json");
-                Console.WriteLine($"  {bundle.BundleBasePath}.export.pretty.json");
+                Console.WriteLine("Export complete:");
+                Console.WriteLine($"  RAW (compact):   {bundle.BundleBasePath}.raw.json");
+                Console.WriteLine($"  RAW (pretty):    {bundle.BundleBasePath}.raw.pretty.json");
+                Console.WriteLine($"  PARSED (compact): {bundle.BundleBasePath}.export.json");
+                Console.WriteLine($"  PARSED (pretty):  {bundle.BundleBasePath}.export.pretty.json");
             }
             catch (Exception ex)
             {
-                Console.WriteLine();
-                Console.WriteLine("ERROR while exporting save:");
-                Console.WriteLine(ex);
-
-                Logger.LogException("ERROR exporting save with chain", ex);
-            }
-
-            if (Logger.LogFilePath is not null)
-            {
-                Console.WriteLine();
-                Console.WriteLine("A log file was written to:");
-                Console.WriteLine($"  {Logger.LogFilePath}");
+                Console.WriteLine("An error occurred during export. See log for details.");
+                Logger.LogException("Export failure", ex);
             }
         }
 
         private static string GetSaveRoot()
         {
-            var documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-
-            var saveRoot = Path.Combine(
-                documents,
-                "My Games",
-                "Wasteland3",
-                "Save Games");
-
-            return saveRoot;
+            var docPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            return Path.Combine(docPath, "My Games", "Wasteland3", "Save Games");
         }
 
-        private static string GetOutputDirectory()
+        private static List<FileInfo> FindXmlSaves(string saveRoot)
         {
-            var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-
-            var outDir = Path.Combine(
-                profile,
-                "Downloads",
-                "WL3Saves");
-
-            return outDir;
-        }
-
-        private static List<FileInfo> FindXmlSaves(string root)
-        {
-            var xmlFiles = Directory
-                .EnumerateFiles(root, "*.xml", SearchOption.AllDirectories)
-                .Select(path => new FileInfo(path))
-                .OrderByDescending(fi => fi.LastWriteTimeUtc)
+            var di = new DirectoryInfo(saveRoot);
+            var files = di.GetFiles("*.xml", SearchOption.AllDirectories)
+                .OrderByDescending(f => f.LastWriteTimeUtc)
                 .ToList();
 
-            return xmlFiles;
-        }
-
-        private static void PrintSaveList(List<FileInfo> xmlFiles)
-        {
-            Console.WriteLine($"Found {xmlFiles.Count} XML save(s).");
-            Console.WriteLine();
-
-            for (var i = 0; i < xmlFiles.Count; i++)
-            {
-                var fi = xmlFiles[i];
-
-                Console.WriteLine(
-                    $"[{i + 1}] {fi.FullName}  (Modified: {fi.LastWriteTime})");
-            }
+            return files;
         }
 
         private static ExportBundle ExportWithChainUpTo(
@@ -218,7 +175,8 @@ namespace WastelandSaveTools.App
                 Scene = current.Normalized.Summary.Scene,
                 SaveTime = current.Normalized.Summary.SaveTime,
                 Current = current.Normalized,
-                Chain = chain
+                Chain = chain,
+                Issues = current.Issues
             };
 
             var bundlePrefix = $"{current.TimestampLocal}.{current.SaveName}";
@@ -237,15 +195,17 @@ namespace WastelandSaveTools.App
         {
             var savePath = saveFile.FullName;
 
+            var issues = new List<ExportIssue>();
+
             Logger.Log("Step: read XML from save...");
             var xml = SaveReader.ExtractXml(savePath);
             Logger.Log($"XML extracted. Length={xml.Length}");
 
             Logger.Log("Step: extract raw...");
-            var raw = StateExtractor.Extract(xml);
+            var raw = StateExtractor.Extract(xml, issues);
 
             Logger.Log("Step: parse...");
-            var parsed = StateParser.Parse(raw);
+            var parsed = StateParser.Parse(raw, issues);
 
             Logger.Log("Step: normalize...");
             var normalized = Normalizer.Normalize(raw, parsed, ToolVersion);
@@ -262,7 +222,8 @@ namespace WastelandSaveTools.App
             {
                 SaveName = safeName,
                 TimestampLocal = timestamp,
-                Normalized = normalized
+                Normalized = normalized,
+                Issues = issues
             };
 
             return snapshot;
@@ -285,6 +246,11 @@ namespace WastelandSaveTools.App
             public string SaveName { get; set; } = "";
             public string TimestampLocal { get; set; } = "";
             public NormalizedSaveState Normalized { get; set; } = new NormalizedSaveState();
+
+            /// <summary>
+            /// Non fatal and fatal issues detected while reading and parsing this save.
+            /// </summary>
+            public List<ExportIssue> Issues { get; set; } = new();
         }
 
         private class ExportBundle
@@ -295,13 +261,19 @@ namespace WastelandSaveTools.App
             public string SaveName { get; set; } = "";
             public string TimestampLocal { get; set; } = "";
 
-            // New surfaced metadata from Current.Summary
+            // Surfaced metadata from Current.Summary
             public string Version { get; set; } = "";
             public string Scene { get; set; } = "";
             public string SaveTime { get; set; } = "";
 
             public NormalizedSaveState Current { get; set; } = new NormalizedSaveState();
             public CampaignDiffChain Chain { get; set; } = new CampaignDiffChain();
+
+            /// <summary>
+            /// Issues detected while building the "Current" snapshot.
+            /// For now this only includes issues from the selected save.
+            /// </summary>
+            public List<ExportIssue> Issues { get; set; } = new();
 
             // Not serialized - just for printing.
             public string BundleBasePath { get; set; } = "";
