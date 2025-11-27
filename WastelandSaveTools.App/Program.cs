@@ -34,7 +34,7 @@ namespace WastelandSaveTools.App
                 return;
             }
 
-            Console.WriteLine("Available XML saves:");
+            Console.WriteLine("Available XML saves (most recent first):");
             for (var i = 0; i < xmlFiles.Count; i++)
             {
                 Console.WriteLine($"  [{i + 1}] {xmlFiles[i].FullName}");
@@ -53,7 +53,7 @@ namespace WastelandSaveTools.App
 
             var selected = xmlFiles[selection - 1];
             Console.WriteLine();
-            Console.WriteLine($"Selected save:");
+            Console.WriteLine("Selected save:");
             Console.WriteLine($"  {selected.FullName}");
             Console.WriteLine();
 
@@ -71,8 +71,8 @@ namespace WastelandSaveTools.App
                 var bundle = ExportWithChainUpTo(selected, xmlFiles, outDir);
 
                 Console.WriteLine("Export complete:");
-                Console.WriteLine($"  RAW (compact):   {bundle.BundleBasePath}.raw.json");
-                Console.WriteLine($"  RAW (pretty):    {bundle.BundleBasePath}.raw.pretty.json");
+                Console.WriteLine($"  RAW (compact):    {bundle.BundleBasePath}.raw.json");
+                Console.WriteLine($"  RAW (pretty):     {bundle.BundleBasePath}.raw.pretty.json");
                 Console.WriteLine($"  PARSED (compact): {bundle.BundleBasePath}.export.json");
                 Console.WriteLine($"  PARSED (pretty):  {bundle.BundleBasePath}.export.pretty.json");
             }
@@ -120,6 +120,7 @@ namespace WastelandSaveTools.App
 
             foreach (var fi in chronological)
             {
+                // Stop once we go past the selected save in time
                 if (fi.LastWriteTimeUtc > selectedSave.LastWriteTimeUtc)
                 {
                     break;
@@ -164,16 +165,24 @@ namespace WastelandSaveTools.App
                     "Selected save did not appear in chronological chain.");
             }
 
+            var summary = current.Normalized.Summary ?? new ParsedSummary();
+
             var bundle = new ExportBundle
             {
                 ToolVersion = ToolVersion,
                 GeneratedAtLocal = DateTime.Now.ToString("O"),
+
                 SaveName = current.SaveName,
                 TimestampLocal = current.TimestampLocal,
-                // New: surface summary metadata at top-level
-                Version = current.Normalized.Summary.Version,
-                Scene = current.Normalized.Summary.Scene,
-                SaveTime = current.Normalized.Summary.SaveTime,
+
+                // Inline header metadata from the save
+                Version = summary.Version,
+                Scene = summary.Scene,
+                SaveTime = summary.SaveTime,
+                Difficulty = summary.Difficulty,
+                GameplaySeconds = summary.GameplaySeconds,
+                Money = summary.Money,
+
                 Current = current.Normalized,
                 Chain = chain,
                 Issues = current.Issues
@@ -181,6 +190,9 @@ namespace WastelandSaveTools.App
 
             var bundlePrefix = $"{current.TimestampLocal}.{current.SaveName}";
             var bundleBasePath = Path.Combine(outDir, bundlePrefix);
+
+            WriteJson(bundleBasePath + ".raw.json", current.Normalized, false);
+            WriteJson(bundleBasePath + ".raw.pretty.json", current.Normalized, true);
 
             WriteJson(bundleBasePath + ".export.json", bundle, false);
             WriteJson(bundleBasePath + ".export.pretty.json", bundle, true);
@@ -261,10 +273,19 @@ namespace WastelandSaveTools.App
             public string SaveName { get; set; } = "";
             public string TimestampLocal { get; set; } = "";
 
-            // Surfaced metadata from Current.Summary
+            // Surfaced metadata from Current.Summary / ParsedSummary
             public string Version { get; set; } = "";
             public string Scene { get; set; } = "";
             public string SaveTime { get; set; } = "";
+            public string Difficulty { get; set; } = "";
+            public int GameplaySeconds
+            {
+                get; set;
+            }
+            public int Money
+            {
+                get; set;
+            }
 
             public NormalizedSaveState Current { get; set; } = new NormalizedSaveState();
             public CampaignDiffChain Chain { get; set; } = new CampaignDiffChain();
