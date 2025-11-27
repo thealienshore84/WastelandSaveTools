@@ -324,8 +324,8 @@ namespace WastelandSaveTools.App
 
         private class SaveSnapshot
         {
-            public string SaveName { get; set; } = "";
-            public string TimestampLocal { get; set; } = "";
+            public string SaveName { get; set; } = string.Empty;
+            public string TimestampLocal { get; set; } = string.Empty;
             public NormalizedSaveState Normalized { get; set; } = new NormalizedSaveState();
 
             /// <summary>
@@ -336,17 +336,17 @@ namespace WastelandSaveTools.App
 
         private class ExportBundle
         {
-            public string ToolVersion { get; set; } = "";
-            public string GeneratedAtLocal { get; set; } = "";
+            public string ToolVersion { get; set; } = string.Empty;
+            public string GeneratedAtLocal { get; set; } = string.Empty;
 
-            public string SaveName { get; set; } = "";
-            public string TimestampLocal { get; set; } = "";
+            public string SaveName { get; set; } = string.Empty;
+            public string TimestampLocal { get; set; } = string.Empty;
 
             // Surfaced metadata from Current.Summary / ParsedSummary
-            public string Version { get; set; } = "";
-            public string Scene { get; set; } = "";
-            public string SaveTime { get; set; } = "";
-            public string Difficulty { get; set; } = "";
+            public string Version { get; set; } = string.Empty;
+            public string Scene { get; set; } = string.Empty;
+            public string SaveTime { get; set; } = string.Empty;
+            public string Difficulty { get; set; } = string.Empty;
             public int GameplaySeconds
             {
                 get; set;
@@ -366,7 +366,7 @@ namespace WastelandSaveTools.App
             public List<ExportIssue> Issues { get; set; } = new();
 
             // Not serialized - just for printing.
-            public string BundleBasePath { get; set; } = "";
+            public string BundleBasePath { get; set; } = string.Empty;
         }
     }
 }

@@ -6,7 +6,7 @@ namespace WastelandSaveTools.App
 {
     public class NormalizedSaveState
     {
-        public string GeneratedBy { get; set; } = "";
+        public string GeneratedBy { get; set; } = string.Empty;
         public ParsedSummary Summary { get; set; } = new ParsedSummary();
         public List<string> Party { get; set; } = new();
 
@@ -52,11 +52,14 @@ namespace WastelandSaveTools.App
 
     public class NormalizedCharacter
     {
-        public string Name { get; set; } = "";
+        public string Name { get; set; } = string.Empty;
         public bool IsCompanion { get; set; }
         public bool IsCustomName { get; set; }
         public int Level { get; set; }
         public int XP { get; set; }
+        public int UnspentAttributePoints { get; set; }
+        public int UnspentSkillPoints { get; set; }
+        public int UnspentPerkPoints { get; set; }
         public ParsedAttributes Attributes { get; set; } = new ParsedAttributes();
 
         /// <summary>
@@ -80,17 +83,17 @@ namespace WastelandSaveTools.App
         /// Low-level name inferred from the animalCompanions block, e.g.
         /// "AnimalCompanion_1". Kept primarily for debugging.
         /// </summary>
-        public string Name { get; set; } = "";
+        public string Name { get; set; } = string.Empty;
 
         /// <summary>
         /// Name of the PC this follower is attached to, e.g. "Astra".
         /// </summary>
-        public string AssignedTo { get; set; } = "";
+        public string AssignedTo { get; set; } = string.Empty;
 
         /// <summary>
         /// High-level type such as "Animal" or "Unknown".
         /// </summary>
-        public string Type { get; set; } = "";
+        public string Type { get; set; } = string.Empty;
 
         /// <summary>
         /// Whether this follower is currently active in the party.
@@ -110,17 +113,17 @@ namespace WastelandSaveTools.App
         /// <summary>
         /// Stable identifier for the follower, e.g. "MajorTom" or "TwoHeadedGoat".
         /// </summary>
-        public string Id { get; set; } = "";
+        public string Id { get; set; } = string.Empty;
 
         /// <summary>
         /// Human-friendly display name, e.g. "Major Tomcat".
         /// </summary>
-        public string Name { get; set; } = "";
+        public string Name { get; set; } = string.Empty;
 
         /// <summary>
         /// Category such as "AnimalCompanion".
         /// </summary>
-        public string Category { get; set; } = "";
+        public string Category { get; set; } = string.Empty;
 
         /// <summary>
         /// Whether this follower is currently travelling with the party
@@ -139,20 +142,20 @@ namespace WastelandSaveTools.App
     /// </summary>
     public class NormalizedItem
     {
-        public string Id { get; set; } = "";
-        public string Template { get; set; } = "";
-        public string Name { get; set; } = "";
+        public string Id { get; set; } = string.Empty;
+        public string Template { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
         public int Quantity { get; set; }
 
         /// <summary>
         /// Owner name if known - typically a PC name or container name.
         /// </summary>
-        public string Owner { get; set; } = "";
+        public string Owner { get; set; } = string.Empty;
 
         /// <summary>
         /// High-level context string (e.g. "pc:Astra:equipment", "container:Shared Stash").
         /// </summary>
-        public string Context { get; set; } = "";
+        public string Context { get; set; } = string.Empty;
 
         /// <summary>
         /// Bag of extra attributes flattened from the underlying XML.
@@ -165,9 +168,9 @@ namespace WastelandSaveTools.App
     /// </summary>
     public class NormalizedContainer
     {
-        public string Id { get; set; } = "";
-        public string Name { get; set; } = "";
-        public string Type { get; set; } = "";
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Type { get; set; } = string.Empty;
 
         /// <summary>
         /// Bag of extra attributes flattened from the underlying XML.
@@ -245,6 +248,9 @@ namespace WastelandSaveTools.App
                     IsCustomName = ch.IsCustomName,
                     Level = ch.Level,
                     XP = ch.XP,
+                    UnspentAttributePoints = ch.UnspentAttributePoints,
+                    UnspentSkillPoints = ch.UnspentSkillPoints,
+                    UnspentPerkPoints = ch.UnspentPerkPoints,
                     Attributes = ch.Attributes ?? new ParsedAttributes()
                 };
 
@@ -277,7 +283,7 @@ namespace WastelandSaveTools.App
                     continue;
                 }
 
-                flat[flag.Key] = flag.Value ?? "";
+                flat[flag.Key] = flag.Value ?? string.Empty;
             }
 
             normalized.FlatGlobals = flat;
@@ -440,7 +446,7 @@ namespace WastelandSaveTools.App
 
                     if (isLast)
                     {
-                        current[part] = flag.Value ?? "";
+                        current[part] = flag.Value ?? string.Empty;
                     }
                     else
                     {

@@ -45,11 +45,11 @@ namespace WastelandSaveTools.App
 
             return new ParsedSummary
             {
-                Version = raw.Summary.Version ?? "",
-                Scene = raw.Summary.Scene ?? "",
-                SaveTime = raw.Summary.SaveTime ?? "",
+                Version = raw.Summary.Version ?? string.Empty,
+                Scene = raw.Summary.Scene ?? string.Empty,
+                SaveTime = raw.Summary.SaveTime ?? string.Empty,
                 GameplaySeconds = gameplaySeconds,
-                Difficulty = raw.Summary.Difficulty ?? "",
+                Difficulty = raw.Summary.Difficulty ?? string.Empty,
                 Money = money
             };
         }
@@ -140,6 +140,9 @@ namespace WastelandSaveTools.App
                 IsCustomName = !isCompanion,
                 Level = ReadInt(pc, "level"),
                 XP = ReadInt(pc, "xp"),
+                UnspentAttributePoints = ReadIntAny(pc, "unspentAttributePoints", "attributePoints"),
+                UnspentSkillPoints = ReadIntAny(pc, "unspentSkillPoints", "skillPoints"),
+                UnspentPerkPoints = ReadIntAny(pc, "unspentPerkPoints", "perkPoints"),
                 Attributes = new ParsedAttributes
                 {
                     Coordination = ReadInt(pc, "coordination"),
@@ -268,7 +271,7 @@ namespace WastelandSaveTools.App
                 try
                 {
                     int id = ReadInt(fd, "follower");
-                    var assigned = fd.Element("pcName")?.Value ?? "";
+                    var assigned = ResolveOwnerName(fd.Element("pcName")?.Value, target.Characters);
                     target.Followers.Add(new ParsedFollower
                     {
                         FollowerId = id,
@@ -297,8 +300,8 @@ namespace WastelandSaveTools.App
                 var info = (IXmlLineInfo)ac;
                 try
                 {
-                    string type = ac.Element("type")?.Value ?? "";
-                    string owner = ac.Element("ownerName")?.Value ?? "";
+                    string type = ac.Element("type")?.Value ?? string.Empty;
+                    string owner = ResolveOwnerName(ac.Element("ownerName")?.Value, target.Characters);
                     int id = ReadInt(ac, "id");
 
                     var f = target.Followers.FirstOrDefault(x => x.FollowerId == id);
@@ -311,6 +314,11 @@ namespace WastelandSaveTools.App
                             IsActive = true
                         };
                         target.Followers.Add(f);
+                    }
+
+                    if (string.IsNullOrWhiteSpace(f.AssignedTo) && !string.IsNullOrWhiteSpace(owner))
+                    {
+                        f.AssignedTo = owner;
                     }
 
                     f.Type = "Animal";
@@ -387,7 +395,7 @@ namespace WastelandSaveTools.App
                 if (itemsEl.Ancestors("container").Any())
                     continue;
 
-                var owner = itemsEl.Attribute("owner")?.Value ?? "";
+                var owner = itemsEl.Attribute("owner")?.Value ?? string.Empty;
                 if (string.IsNullOrWhiteSpace(owner))
                     continue;
 
@@ -455,9 +463,9 @@ namespace WastelandSaveTools.App
                     var c = new ParsedContainerRecord
                     {
                         Id = cEl.Element("id")?.Value ??
-                             cEl.Attribute("id")?.Value ?? "",
+                             cEl.Attribute("id")?.Value ?? string.Empty,
                         Name = cEl.Element("name")?.Value ??
-                               cEl.Element("displayName")?.Value ?? "",
+                               cEl.Element("displayName")?.Value ?? string.Empty,
                         Type = cEl.Element("type")?.Value ??
                                cEl.Attribute("type")?.Value ?? contextHint,
                         Data = Flatten(cEl)
@@ -493,7 +501,7 @@ namespace WastelandSaveTools.App
                 if (itemsEl.Ancestors("container").Any())
                     continue;
 
-                string contextAttr = itemsEl.Attribute("context")?.Value ?? "";
+                string contextAttr = itemsEl.Attribute("context")?.Value ?? string.Empty;
                 string context = string.IsNullOrWhiteSpace(contextAttr)
                     ? contextHint
                     : contextAttr;
@@ -502,7 +510,7 @@ namespace WastelandSaveTools.App
                 {
                     try
                     {
-                        var item = BuildItemRecord(itemEl, "");
+                        var item = BuildItemRecord(itemEl, string.Empty);
                         item.Context = context;
                         target.Items.Add(item);
                     }
@@ -572,7 +580,7 @@ namespace WastelandSaveTools.App
                     if (string.IsNullOrWhiteSpace(key))
                         continue;
 
-                    var value = g.Element("v")?.Value ?? "";
+                    var value = g.Element("v")?.Value ?? string.Empty;
 
                     target.Globals.Add(new GlobalFlag
                     {
@@ -609,6 +617,49 @@ namespace WastelandSaveTools.App
             return int.TryParse(el.Value, out var i) ? i : 0;
         }
 
+        private static int ReadIntAny(XElement parent, params string[] names)
+        {
+            foreach (var name in names)
+            {
+                var el = parent.Element(name);
+                if (el == null)
+                {
+                    continue;
+                }
+
+                if (int.TryParse(el.Value, out var i))
+                {
+                    return i;
+                }
+            }
+
+            return 0;
+        }
+
+        private static string ResolveOwnerName(string? rawName, List<ParsedCharacter> party)
+        {
+            if (string.IsNullOrWhiteSpace(rawName))
+                return string.Empty;
+
+            var normalizedRaw = NormalizeName(rawName);
+
+            foreach (var ch in party)
+            {
+                if (string.Equals(ch.Name, rawName, StringComparison.OrdinalIgnoreCase))
+                    return ch.Name;
+
+                if (string.Equals(NormalizeName(ch.Name), normalizedRaw, StringComparison.OrdinalIgnoreCase))
+                    return ch.Name;
+            }
+
+            return rawName;
+        }
+
+        private static string NormalizeName(string name)
+        {
+            return Regex.Replace(name ?? string.Empty, "[^A-Za-z0-9]", string.Empty);
+        }
+
         private static string? TryInferPcName(XElement pc)
         {
             var name = pc.Element("name")?.Value;
@@ -636,17 +687,17 @@ namespace WastelandSaveTools.App
             {
                 Id = el.Element("uid")?.Value ??
                      el.Element("id")?.Value ??
-                     el.Attribute("id")?.Value ?? "",
+                     el.Attribute("id")?.Value ?? string.Empty,
                 Template = el.Element("templateName")?.Value ??
-                           el.Element("template")?.Value ?? "",
+                           el.Element("template")?.Value ?? string.Empty,
                 Name = el.Element("displayName")?.Value ??
-                       el.Element("name")?.Value ?? "",
+                       el.Element("name")?.Value ?? string.Empty,
                 Owner = owner
             };
 
             var data = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var child in el.Elements())
-                data[child.Name.LocalName] = child.Value ?? "";
+                data[child.Name.LocalName] = child.Value ?? string.Empty;
 
             if (!string.IsNullOrWhiteSpace(owner))
                 data["Owner"] = owner;
@@ -662,7 +713,7 @@ namespace WastelandSaveTools.App
             foreach (var el in element.DescendantsAndSelf())
             {
                 var key = el.Name.LocalName;
-                var value = el.Value ?? "";
+                var value = el.Value ?? string.Empty;
                 if (!dict.ContainsKey(key))
                     dict[key] = value;
             }

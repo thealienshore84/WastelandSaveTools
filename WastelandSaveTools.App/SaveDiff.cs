@@ -6,8 +6,8 @@ namespace WastelandSaveTools.App
 {
     public class SaveDiffResult
     {
-        public string FromSaveName { get; set; } = "";
-        public string ToSaveName { get; set; } = "";
+        public string FromSaveName { get; set; } = string.Empty;
+        public string ToSaveName { get; set; } = string.Empty;
 
         // Party membership changes
         public List<string> PartyJoined { get; set; } = new();
@@ -28,7 +28,7 @@ namespace WastelandSaveTools.App
 
     public class CharacterLevelChange
     {
-        public string Name { get; set; } = "";
+        public string Name { get; set; } = string.Empty;
 
         public int FromLevel
         {
@@ -50,8 +50,51 @@ namespace WastelandSaveTools.App
         }
         public int XPDelta => ToXP - FromXP;
 
+        public int FromUnspentAttributePoints
+        {
+            get; set;
+        }
+
+        public int ToUnspentAttributePoints
+        {
+            get; set;
+        }
+        public int UnspentAttributeDelta => ToUnspentAttributePoints - FromUnspentAttributePoints;
+
+        public int FromUnspentSkillPoints
+        {
+            get; set;
+        }
+
+        public int ToUnspentSkillPoints
+        {
+            get; set;
+        }
+        public int UnspentSkillDelta => ToUnspentSkillPoints - FromUnspentSkillPoints;
+
+        public int FromUnspentPerkPoints
+        {
+            get; set;
+        }
+
+        public int ToUnspentPerkPoints
+        {
+            get; set;
+        }
+        public int UnspentPerkDelta => ToUnspentPerkPoints - FromUnspentPerkPoints;
+
         // Optional: basic “size” indicator
-        public int Weight => Math.Abs(LevelDelta) * 10 + Math.Abs(XPDelta) / 100;
+        public int Weight
+        {
+            get
+            {
+                return Math.Abs(LevelDelta) * 10
+                    + Math.Abs(XPDelta) / 100
+                    + Math.Abs(UnspentAttributeDelta)
+                    + Math.Abs(UnspentSkillDelta)
+                    + Math.Abs(UnspentPerkDelta);
+            }
+        }
     }
 
     public enum InventoryChangeType
@@ -69,13 +112,13 @@ namespace WastelandSaveTools.App
         }
 
         /// <summary>Owner name (PC or container name).</summary>
-        public string Owner { get; set; } = "";
+        public string Owner { get; set; } = string.Empty;
 
         /// <summary>High-level context: e.g. "pc:Astra:equipment", "container:Shared Stash".</summary>
-        public string Context { get; set; } = "";
+        public string Context { get; set; } = string.Empty;
 
-        public string Template { get; set; } = "";
-        public string Name { get; set; } = "";
+        public string Template { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
 
         public int FromQuantity
         {
@@ -105,10 +148,10 @@ namespace WastelandSaveTools.App
             get; set;
         }
 
-        public string Id { get; set; } = "";
-        public string Name { get; set; } = "";
-        public string FromType { get; set; } = "";
-        public string ToType { get; set; } = "";
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string FromType { get; set; } = string.Empty;
+        public string ToType { get; set; } = string.Empty;
 
         public int Weight => 1;
     }
@@ -130,13 +173,13 @@ namespace WastelandSaveTools.App
         /// <summary>
         /// Full key from FlatGlobals, e.g. "a1001.Prisoner.State".
         /// </summary>
-        public string Key { get; set; } = "";
+        public string Key { get; set; } = string.Empty;
 
         /// <summary>
         /// Category derived from the prefix before the first dot, e.g. "a1001".
         /// Useful for grouping.
         /// </summary>
-        public string Category { get; set; } = "";
+        public string Category { get; set; } = string.Empty;
 
         public string? FromValue
         {
@@ -254,7 +297,13 @@ namespace WastelandSaveTools.App
                     continue;
                 }
 
-                if (fromChar.Level == toChar.Level && fromChar.XP == toChar.XP)
+                var spentUnchanged = fromChar.UnspentAttributePoints == toChar.UnspentAttributePoints
+                    && fromChar.UnspentSkillPoints == toChar.UnspentSkillPoints
+                    && fromChar.UnspentPerkPoints == toChar.UnspentPerkPoints;
+
+                if (fromChar.Level == toChar.Level
+                    && fromChar.XP == toChar.XP
+                    && spentUnchanged)
                     continue;
 
                 var change = new CharacterLevelChange
@@ -263,7 +312,13 @@ namespace WastelandSaveTools.App
                     FromLevel = fromChar.Level,
                     ToLevel = toChar.Level,
                     FromXP = fromChar.XP,
-                    ToXP = toChar.XP
+                    ToXP = toChar.XP,
+                    FromUnspentAttributePoints = fromChar.UnspentAttributePoints,
+                    ToUnspentAttributePoints = toChar.UnspentAttributePoints,
+                    FromUnspentSkillPoints = fromChar.UnspentSkillPoints,
+                    ToUnspentSkillPoints = toChar.UnspentSkillPoints,
+                    FromUnspentPerkPoints = fromChar.UnspentPerkPoints,
+                    ToUnspentPerkPoints = toChar.UnspentPerkPoints
                 };
 
                 changes.Add(change);
@@ -325,10 +380,10 @@ namespace WastelandSaveTools.App
 
                 // Decode the key back into pieces for readability.
                 var parts = key.Split(new[] { "||" }, StringSplitOptions.None);
-                var owner = parts.Length > 0 ? parts[0] : "";
-                var context = parts.Length > 1 ? parts[1] : "";
-                var template = parts.Length > 2 ? parts[2] : "";
-                var name = parts.Length > 3 ? parts[3] : "";
+                var owner = parts.Length > 0 ? parts[0] : string.Empty;
+                var context = parts.Length > 1 ? parts[1] : string.Empty;
+                var template = parts.Length > 2 ? parts[2] : string.Empty;
+                var name = parts.Length > 3 ? parts[3] : string.Empty;
 
                 InventoryChangeType type;
                 if (fromQty == 0 && toQty > 0)
@@ -413,7 +468,7 @@ namespace WastelandSaveTools.App
                         ChangeType = ContainerChangeType.Added,
                         Id = key,
                         Name = toC!.Name,
-                        FromType = "",
+                        FromType = string.Empty,
                         ToType = toC.Type
                     });
                     continue;
@@ -427,7 +482,7 @@ namespace WastelandSaveTools.App
                         Id = key,
                         Name = fromC!.Name,
                         FromType = fromC.Type,
-                        ToType = ""
+                        ToType = string.Empty
                     });
                     continue;
                 }
@@ -494,7 +549,7 @@ namespace WastelandSaveTools.App
                     type = GlobalChangeType.Changed;
                 }
 
-                var category = "";
+                var category = string.Empty;
                 var dotIndex = key.IndexOf('.');
                 if (dotIndex > 0)
                     category = key.Substring(0, dotIndex);
@@ -518,15 +573,15 @@ namespace WastelandSaveTools.App
 
     public class CampaignDiffLink
     {
-        public string FromSaveName { get; set; } = "";
-        public string ToSaveName { get; set; } = "";
+        public string FromSaveName { get; set; } = string.Empty;
+        public string ToSaveName { get; set; } = string.Empty;
         public SaveDiffResult Diff { get; set; } = new SaveDiffResult();
     }
 
     public class CampaignDiffChain
     {
-        public string ToolVersion { get; set; } = "";
-        public string GeneratedAtUtc { get; set; } = "";
+        public string ToolVersion { get; set; } = string.Empty;
+        public string GeneratedAtUtc { get; set; } = string.Empty;
         public List<CampaignDiffLink> Links { get; set; } = new();
     }
 }
