@@ -140,6 +140,9 @@ namespace WastelandSaveTools.App
                 IsCustomName = !isCompanion,
                 Level = ReadInt(pc, "level"),
                 XP = ReadInt(pc, "xp"),
+                UnspentAttributePoints = ReadIntAny(pc, "unspentAttributePoints", "attributePoints"),
+                UnspentSkillPoints = ReadIntAny(pc, "unspentSkillPoints", "skillPoints"),
+                UnspentPerkPoints = ReadIntAny(pc, "unspentPerkPoints", "perkPoints"),
                 Attributes = new ParsedAttributes
                 {
                     Coordination = ReadInt(pc, "coordination"),
@@ -268,7 +271,7 @@ namespace WastelandSaveTools.App
                 try
                 {
                     int id = ReadInt(fd, "follower");
-                    var assigned = fd.Element("pcName")?.Value ?? "";
+                    var assigned = ResolveOwnerName(fd.Element("pcName")?.Value, target.Characters);
                     target.Followers.Add(new ParsedFollower
                     {
                         FollowerId = id,
@@ -298,7 +301,7 @@ namespace WastelandSaveTools.App
                 try
                 {
                     string type = ac.Element("type")?.Value ?? "";
-                    string owner = ac.Element("ownerName")?.Value ?? "";
+                    string owner = ResolveOwnerName(ac.Element("ownerName")?.Value, target.Characters);
                     int id = ReadInt(ac, "id");
 
                     var f = target.Followers.FirstOrDefault(x => x.FollowerId == id);
@@ -311,6 +314,11 @@ namespace WastelandSaveTools.App
                             IsActive = true
                         };
                         target.Followers.Add(f);
+                    }
+
+                    if (string.IsNullOrWhiteSpace(f.AssignedTo) && !string.IsNullOrWhiteSpace(owner))
+                    {
+                        f.AssignedTo = owner;
                     }
 
                     f.Type = "Animal";
@@ -607,6 +615,49 @@ namespace WastelandSaveTools.App
                 return 0;
 
             return int.TryParse(el.Value, out var i) ? i : 0;
+        }
+
+        private static int ReadIntAny(XElement parent, params string[] names)
+        {
+            foreach (var name in names)
+            {
+                var el = parent.Element(name);
+                if (el == null)
+                {
+                    continue;
+                }
+
+                if (int.TryParse(el.Value, out var i))
+                {
+                    return i;
+                }
+            }
+
+            return 0;
+        }
+
+        private static string ResolveOwnerName(string? rawName, List<ParsedCharacter> party)
+        {
+            if (string.IsNullOrWhiteSpace(rawName))
+                return string.Empty;
+
+            var normalizedRaw = NormalizeName(rawName);
+
+            foreach (var ch in party)
+            {
+                if (string.Equals(ch.Name, rawName, StringComparison.OrdinalIgnoreCase))
+                    return ch.Name;
+
+                if (string.Equals(NormalizeName(ch.Name), normalizedRaw, StringComparison.OrdinalIgnoreCase))
+                    return ch.Name;
+            }
+
+            return rawName;
+        }
+
+        private static string NormalizeName(string name)
+        {
+            return Regex.Replace(name ?? string.Empty, "[^A-Za-z0-9]", string.Empty);
         }
 
         private static string? TryInferPcName(XElement pc)

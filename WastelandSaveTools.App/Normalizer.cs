@@ -57,6 +57,9 @@ namespace WastelandSaveTools.App
         public bool IsCustomName { get; set; }
         public int Level { get; set; }
         public int XP { get; set; }
+        public int UnspentAttributePoints { get; set; }
+        public int UnspentSkillPoints { get; set; }
+        public int UnspentPerkPoints { get; set; }
         public ParsedAttributes Attributes { get; set; } = new ParsedAttributes();
 
         /// <summary>
@@ -245,6 +248,9 @@ namespace WastelandSaveTools.App
                     IsCustomName = ch.IsCustomName,
                     Level = ch.Level,
                     XP = ch.XP,
+                    UnspentAttributePoints = ch.UnspentAttributePoints,
+                    UnspentSkillPoints = ch.UnspentSkillPoints,
+                    UnspentPerkPoints = ch.UnspentPerkPoints,
                     Attributes = ch.Attributes ?? new ParsedAttributes()
                 };
 
