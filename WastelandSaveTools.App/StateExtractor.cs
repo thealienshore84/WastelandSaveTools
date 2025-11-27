@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Xml;
 using System.Xml.Linq;
 
 namespace WastelandSaveTools.App
@@ -9,21 +9,61 @@ namespace WastelandSaveTools.App
     {
         public static RawSaveState Extract(string xml)
         {
+            // Legacy behavior preserved. Caller should use the overload with issues.
+            return Extract(xml, null);
+        }
+
+        public static RawSaveState Extract(string xml, List<ExportIssue>? issues)
+        {
             var result = new RawSaveState();
 
             if (string.IsNullOrWhiteSpace(xml))
             {
+                issues?.Add(new ExportIssue
+                {
+                    Severity = ExportIssueSeverity.Error,
+                    Component = "StateExtractor",
+                    Context = "save",
+                    Message = "XML input string was empty."
+                });
                 return result;
             }
 
-            var doc = XDocument.Parse(xml);
+            XDocument doc;
+            try
+            {
+                doc = XDocument.Parse(xml, LoadOptions.SetLineInfo);
+            }
+            catch (XmlException ex)
+            {
+                issues?.Add(new ExportIssue
+                {
+                    Severity = ExportIssueSeverity.Error,
+                    Component = "StateExtractor",
+                    Context = "save",
+                    Message = $"Malformed XML: {ex.Message}",
+                    LineNumber = ex.LineNumber,
+                    LinePosition = ex.LinePosition
+                });
+
+                // Cannot recover from malformed root
+                return result;
+            }
+
             var root = doc.Root;
             if (root == null)
             {
+                issues?.Add(new ExportIssue
+                {
+                    Severity = ExportIssueSeverity.Error,
+                    Component = "StateExtractor",
+                    Context = "save",
+                    Message = "XML root was null.",
+                });
                 return result;
             }
 
-            // Summary
+            // Summary extraction
             result.Summary.Version = root.Attribute("version")?.Value ?? "";
             result.Summary.Scene = root.Attribute("scene")?.Value ?? "";
             result.Summary.SaveTime = root.Attribute("saveTime")?.Value ?? "";
@@ -31,38 +71,64 @@ namespace WastelandSaveTools.App
             result.Summary.Difficulty = root.Attribute("difficulty")?.Value ?? "";
             result.Summary.Money = root.Attribute("money")?.Value ?? "";
 
-            // Sections
-            result.Xml.Levels = ExtractSection(doc, "levels") ?? "";
-            result.Xml.Globals = ExtractSection(doc, "globals") ?? "";
-            result.Xml.Quests = ExtractSection(doc, "quests") ?? "";
-            result.Xml.Reputation = ExtractSection(doc, "reputation") ?? "";
-            result.Xml.Pcs = ExtractSection(doc, "pcs") ?? "";
-            result.Xml.Followers = ExtractSection(doc, "followers") ?? "";
-            result.Xml.Inventory = ExtractSection(doc, "inventory") ?? "";
-            result.Xml.Vehicle = ExtractSection(doc, "vehicle") ?? "";
+            // Individual sections
+            ExtractSection(doc, "levels", result.Xml, issues);
+            ExtractSection(doc, "globals", result.Xml, issues);
+            ExtractSection(doc, "quests", result.Xml, issues);
+            ExtractSection(doc, "reputation", result.Xml, issues);
+            ExtractSection(doc, "pcs", result.Xml, issues);
+            ExtractSection(doc, "followers", result.Xml, issues);
+            ExtractSection(doc, "inventory", result.Xml, issues);
+            ExtractSection(doc, "vehicle", result.Xml, issues);
 
-            // Full XML
             result.RawXml = xml;
-
             return result;
         }
 
-        public static RawSaveState Extract(string xml, List<ExportIssue>? issues)
+        private static void ExtractSection(
+            XDocument doc,
+            string name,
+            RawXmlSections target,
+            List<ExportIssue>? issues)
         {
-            // Currently we do not populate issues in StateExtractor.
-            // This overload exists so callers can start passing an issue list
-            // without changing behavior. Future versions can add detailed
-            // XML parsing diagnostics here.
-            return Extract(xml);
-        }
+            var el = doc.Root?.Element(name);
+            if (el == null)
+            {
+                issues?.Add(new ExportIssue
+                {
+                    Severity = ExportIssueSeverity.Warning,
+                    Component = "StateExtractor",
+                    Context = name,
+                    Message = $"Section <{name}> is missing."
+                });
+                return;
+            }
 
-        private static string ExtractSection(XDocument doc, string name)
-        {
-            // Always returns a non-null string for compiler happiness.
-            var el = doc.Descendants(name).FirstOrDefault();
-            return el != null
-                ? el.ToString(SaveOptions.DisableFormatting)
-                : "";
+            try
+            {
+                var s = el.ToString(SaveOptions.DisableFormatting);
+                switch (name)
+                {
+                    case "levels": target.Levels = s; break;
+                    case "globals": target.Globals = s; break;
+                    case "quests": target.Quests = s; break;
+                    case "reputation": target.Reputation = s; break;
+                    case "pcs": target.Pcs = s; break;
+                    case "followers": target.Followers = s; break;
+                    case "inventory": target.Inventory = s; break;
+                    case "vehicle": target.Vehicle = s; break;
+                }
+            }
+            catch (Exception ex)
+            {
+                issues?.Add(new ExportIssue
+                {
+                    Severity = ExportIssueSeverity.Error,
+                    Component = "StateExtractor",
+                    Context = name,
+                    Message = $"Failed to serialize <{name}>: {ex.Message}"
+                });
+            }
         }
     }
 }
