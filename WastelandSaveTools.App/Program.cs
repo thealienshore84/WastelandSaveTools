@@ -222,6 +222,11 @@ namespace WastelandSaveTools.App
             Logger.Log("Step: normalize...");
             var normalized = Normalizer.Normalize(raw, parsed, ToolVersion);
 
+            // - Phase 3.2 inline metadata -
+            // Pull Version / Location / SaveTime from the physical save file header
+            // and push into Normalized.Summary so it ends up both there and in the bundle.
+            ApplyHeaderMetadata(saveFile, normalized);
+
             var timestamp = saveFile.LastWriteTime
                 .ToString("yyyyMMdd_HHmmss_ffffff");
 
@@ -251,6 +256,70 @@ namespace WastelandSaveTools.App
             var json = JsonSerializer.Serialize(value, options);
 
             File.WriteAllText(path, json);
+        }
+
+        /// <summary>
+        /// Reads the plain-text header at the top of the Wasteland 3 save file:
+        ///   Version:=0.91
+        ///   Location:=ar_a2001_Downtown
+        ///   SaveTime:=20251126T16:06:10-5
+        /// and copies those into Normalized.Summary.
+        /// </summary>
+        private static void ApplyHeaderMetadata(FileInfo saveFile, NormalizedSaveState normalized)
+        {
+            try
+            {
+                string? version = null;
+                string? location = null;
+                string? saveTime = null;
+
+                using (var reader = new StreamReader(saveFile.FullName))
+                {
+                    string? line;
+                    while ((line = reader.ReadLine()) != null)
+                    {
+                        if (line.StartsWith("Version:=", StringComparison.OrdinalIgnoreCase))
+                        {
+                            version = line.Substring("Version:=".Length).Trim();
+                        }
+                        else if (line.StartsWith("Location:=", StringComparison.OrdinalIgnoreCase))
+                        {
+                            location = line.Substring("Location:=".Length).Trim();
+                        }
+                        else if (line.StartsWith("SaveTime:=", StringComparison.OrdinalIgnoreCase))
+                        {
+                            saveTime = line.Substring("SaveTime:=".Length).Trim();
+                        }
+
+                        // Once we have all three, we can stop.
+                        if (version != null && location != null && saveTime != null)
+                            break;
+
+                        // Header lines are of form "Key:=Value".
+                        // Once we hit something that isn't like that after seeing any header,
+                        // we assume we've entered the compressed blob.
+                        if (!line.Contains(":=") && (version != null || location != null || saveTime != null))
+                            break;
+                    }
+                }
+
+                var summary = normalized.Summary ?? new ParsedSummary();
+
+                if (!string.IsNullOrWhiteSpace(version))
+                    summary.Version = version;
+
+                if (!string.IsNullOrWhiteSpace(location))
+                    summary.Scene = location;
+
+                if (!string.IsNullOrWhiteSpace(saveTime))
+                    summary.SaveTime = saveTime;
+
+                normalized.Summary = summary;
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException("ApplyHeaderMetadata failed", ex);
+            }
         }
 
         private class SaveSnapshot
