@@ -50,8 +50,51 @@ namespace WastelandSaveTools.App
         }
         public int XPDelta => ToXP - FromXP;
 
+        public int FromUnspentAttributePoints
+        {
+            get; set;
+        }
+
+        public int ToUnspentAttributePoints
+        {
+            get; set;
+        }
+        public int UnspentAttributeDelta => ToUnspentAttributePoints - FromUnspentAttributePoints;
+
+        public int FromUnspentSkillPoints
+        {
+            get; set;
+        }
+
+        public int ToUnspentSkillPoints
+        {
+            get; set;
+        }
+        public int UnspentSkillDelta => ToUnspentSkillPoints - FromUnspentSkillPoints;
+
+        public int FromUnspentPerkPoints
+        {
+            get; set;
+        }
+
+        public int ToUnspentPerkPoints
+        {
+            get; set;
+        }
+        public int UnspentPerkDelta => ToUnspentPerkPoints - FromUnspentPerkPoints;
+
         // Optional: basic “size” indicator
-        public int Weight => Math.Abs(LevelDelta) * 10 + Math.Abs(XPDelta) / 100;
+        public int Weight
+        {
+            get
+            {
+                return Math.Abs(LevelDelta) * 10
+                    + Math.Abs(XPDelta) / 100
+                    + Math.Abs(UnspentAttributeDelta)
+                    + Math.Abs(UnspentSkillDelta)
+                    + Math.Abs(UnspentPerkDelta);
+            }
+        }
     }
 
     public enum InventoryChangeType
@@ -254,7 +297,13 @@ namespace WastelandSaveTools.App
                     continue;
                 }
 
-                if (fromChar.Level == toChar.Level && fromChar.XP == toChar.XP)
+                var spentUnchanged = fromChar.UnspentAttributePoints == toChar.UnspentAttributePoints
+                    && fromChar.UnspentSkillPoints == toChar.UnspentSkillPoints
+                    && fromChar.UnspentPerkPoints == toChar.UnspentPerkPoints;
+
+                if (fromChar.Level == toChar.Level
+                    && fromChar.XP == toChar.XP
+                    && spentUnchanged)
                     continue;
 
                 var change = new CharacterLevelChange
@@ -263,7 +312,13 @@ namespace WastelandSaveTools.App
                     FromLevel = fromChar.Level,
                     ToLevel = toChar.Level,
                     FromXP = fromChar.XP,
-                    ToXP = toChar.XP
+                    ToXP = toChar.XP,
+                    FromUnspentAttributePoints = fromChar.UnspentAttributePoints,
+                    ToUnspentAttributePoints = toChar.UnspentAttributePoints,
+                    FromUnspentSkillPoints = fromChar.UnspentSkillPoints,
+                    ToUnspentSkillPoints = toChar.UnspentSkillPoints,
+                    FromUnspentPerkPoints = fromChar.UnspentPerkPoints,
+                    ToUnspentPerkPoints = toChar.UnspentPerkPoints
                 };
 
                 changes.Add(change);
