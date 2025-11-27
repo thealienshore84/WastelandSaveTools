@@ -300,7 +300,7 @@ namespace WastelandSaveTools.App
                 var info = (IXmlLineInfo)ac;
                 try
                 {
-                    string type = ac.Element("type")?.Value ?? string.Empty;
+                    string type = ac.Element("type")?.Value ?? "";
                     string owner = ResolveOwnerName(ac.Element("ownerName")?.Value, target.Characters);
                     int id = ReadInt(ac, "id");
 
